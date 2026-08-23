@@ -1,0 +1,29 @@
+# Python & Virtual Environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment Secrets
+.env
+.env.*
+!.env.example
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Obsidian User Temporary Cache (Keep core app.json, graph.json, core-plugins.json committed)
+yuedpao_brain/.obsidian/workspace.json
+yuedpao_brain/.obsidian/workspace-mobile.json
+yuedpao_brain/.obsidian/cache/
+yuedpao_brain/.obsidian/backups/
+
+# OS specific files
+.DS_Store
+Thumbs.db

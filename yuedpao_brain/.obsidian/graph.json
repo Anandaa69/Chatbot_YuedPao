@@ -1,0 +1,16 @@
+{
+  "collapse-filter": false,
+  "collapse-color-groups": false,
+  "collapse-display": false,
+  "collapse-forces": false,
+  "arg.filter.hideUnresolved": false,
+  "arg.filter.search": "",
+  "arg.filter.showOrphans": true,
+  "arg.display.nodeSizeMultiplier": 1.2,
+  "arg.display.lineThicknessMultiplier": 1.5,
+  "arg.display.displayLabels": true,
+  "arg.forces.repelStrength": 10,
+  "arg.forces.linkStrength": 1,
+  "arg.forces.linkDistance": 250,
+  "arg.forces.centerStrength": 0.51
+}

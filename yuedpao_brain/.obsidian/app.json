@@ -1,0 +1,8 @@
+{
+  "useMarkdownLinks": false,
+  "newLinkFormat": "shortest",
+  "showLineNumber": true,
+  "livePreview": true,
+  "autoPairBrackets": true,
+  "autoPairMarkdown": true
+}
