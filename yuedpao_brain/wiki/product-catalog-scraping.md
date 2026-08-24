@@ -90,6 +90,42 @@ The Scraper builds an explicit **Domain Vocabulary Dictionary** used by the [[nl
 
 ---
 
+## 📅 Scraping Strategy & Stock Availability Spec
+
+### 1. ความจริงของระบบ Chatbot (Chatbot as a Showroom & Finder)
+* **ค้นหา & แนะนำสินค้าเท่านั้น**: Chatbot ทำหน้าที่ในการแนะนำสินค้า (Product Discovery) และค้นหาสินค้าที่เหมาะสม ไม่ใช่ระบบตัวตัดสต็อกแบบเรียลไทม์ (Real-time Checkout)
+* **ส่งต่อไปยังหน้าเว็บจริง**: ปลายทางของปุ่มสั่งซื้อในการ์ดสินค้า (Carousel / Flex Message) จะเป็น **Direct URL** เพื่อนำลูกค้าเข้าสู่ระบบสั่งชื้อและชำระเงินของเว็บไซต์ Yuedpao โดยตรง ซึ่งจะไปตัดสต็อกจริงและระบุไซส์/สีในระบบเว็บบอร์ดของ Yuedpao อยู่แล้ว
+* **หลีกเลี่ยง Real-time Scraping**: ห้ามทำการยิง Scrape หน้าเว็บ Yuedpao ทุกครั้งที่ลูกค้ากดคุยเด็ดขาด เนื่องจากจะส่งผลให้:
+  - ค่า Latency ช้าเกินความเร็วที่กำหนด (ต้อง < 1.5–2 วินาที แต่ Real-time Scrape จะใช้เวลา 3–10 วินาที)
+  - เสี่ยงต่อการโดน Web Server ของ Yuedpao บล็อก IP (HTTP 429 Too Many Requests)
+
+### 2. ความถี่ในการอัปเดตข้อมูล (Scraping Schedule)
+การอัปเดตข้อมูลสินค้าจะแบ่งออกเป็น 2 ระดับหลัก:
+1. **Batch Scheduled Scrape (แนะนำ)**: รันอัตโนมัติวันละ 1 ครั้ง (ช่วงเวลาตี 2 – ตี 4) หรือทุกๆ 6–12 ชั่วโมงโดยใช้ Cron Job / GitHub Actions / Celery เพื่อทำการ:
+   - เพิ่มสินค้าชิ้นใหม่ / ตรวจสอบและลบสินค้าที่เลิกจำหน่าย
+   - ตรวจเช็กสถานะการสต็อกสินค้าทั่วไป (`is_available` หรือ `is_in_stock`)
+   - อัปเดตราคาสินค้าช่วง Flash Sale
+2. **Triggered / Manual Scrape**: รันแบบสั่งการด้วยตัวเองผ่าน Terminal / CLI เมื่อมีการทดสอบระบบหรือการแก้ไขโค้ดฝั่ง Scraper
+
+### 3. การออกแบบฐานข้อมูลและการเก็บข้อมูล (Data Storage & Caching)
+* **Master Dataset**: ข้อมูลที่ดึงได้จะถูกแปลงและบันทึกเป็น `products.json` หรือ SQLite Database ในเครื่อง
+* **Fast Caching**: โหลดข้อมูลทั้งหมดขึ้นมาเก็บใน Memory / Cache (เช่น `redis` หรือ Local Memory dict) ทันทีที่ระบบ Chatbot ทำการ Start-up เพื่อช่วยให้ขั้นตอนการประมวลผล NLP & Product Randomizer ทำงานได้รวดเร็วขึ้นในระดับ **< 50 ms**
+* **ฟิลด์ตรวจสอบสต็อก**: ในขั้นตอนการดึงข้อมูล ให้เช็ก Tag บนหน้าเว็บ หากปุ่มเลือกสี/ไซส์กดไม่ได้ หรือมี Tag "สินค้าหมด" ให้ระบุตัวแปร `is_available: boolean (0 หรือ 1)` ในฐานข้อมูลทันที
+
+### 4. การจัดการ Chat UX บน LINE Chatbot กรณีสินค้าหมด (Graceful Fallback)
+เพื่อป้องกันความสับสนของลูกค้าและเพิ่มคะแนน UX การนำเสนอสินค้าต้องใช้เทคนิคดังนี้:
+* **การกรองข้อมูลตอนสุ่ม**: กรองสินค้าที่หมดออกก่อนนำมาแนะนำลูกค้าเสมอ:
+  ```sql
+  SELECT * FROM products 
+  WHERE category = 'oversize' AND is_available = 1 
+  ORDER BY RANDOM() LIMIT 5;
+  ```
+* **ใส่ Micro-copy กากับไว้ใต้ภาพ**: ใส่ตัวอักษรเล็กๆ สีเทาใต้การ์ดสินค้า เช่น *"⚡ เช็กสต็อกและขนาดล่าสุดได้ที่หน้าสั่งซื้อ"*
+* **ปุ่มลิงก์สั่งซื้อที่ชัดเจน**: กำหนดข้อความบนปุ่มเป็น `"สั่งซื้อบนเว็บ"` หรือ `"ดูรายละเอียด / สั่งซื้อ"` แทนการใช้คำว่า "ซื้อทันที" เพื่อสร้างความเข้าใจที่ถูกต้องแก่ผู้ใช้ว่าการทำรายการสุดท้ายจะทำผ่านบราว์เซอร์จริง
+* **Graceful Fallback**: เมื่อลูกค้าเข้าสู่หน้าเว็บจริง หากสินค้านั้นๆ หมด ระบบหน้าเว็บดั้งเดิมของ Yuedpao จะแนะนำรุ่นอื่นๆ ที่ใกล้เคียงให้กับลูกค้าทดแทนได้ทันที
+
+---
+
 ## 🔗 Related Knowledge Pages
 - [[nlp-spelling-correction]] — Utilizing the Scraped Domain Vocabulary for spelling correction.
 - [[database-schema]] — Database tables where scraped data is saved.
