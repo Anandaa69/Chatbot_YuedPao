@@ -42,7 +42,7 @@ Scraping is executed as an **offline background batch process** (Daily/Weekly cr
 ### 2. Fabric & Material Specifications
 - **Fabric Collections**: Non-iron, Ultrasoft, Tailor Cool, MotionSkin, Feather Comfort.
 - **Key Features & USPs**: Wrinkle-free, ultra-soft touch, 4-way stretch, moisture-wicking.
-- **Size Charts**: Chest width (inches/cm), Shirt length, Waist circumference, Sleeve length.
+- **Size Charts**: Chest width (inches/cm), Shirt length, Waist circumference, Sleeve length. ดึงลิงก์รูปภาพตารางไซส์สินค้าแต่ละประเภท (ดึงจากแท็ก `img` ที่มีคลาส `mpe-no-image-placeholder` และ URL จะอยู่ภายใต้รูปแบบ `/physical/[product_id]/image/[image_id]` เช่น `https://mp-static.yuedpao.com/physical/.../image/...`)
 
 ---
 
