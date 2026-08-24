@@ -5,6 +5,7 @@ import sqlite3
 import json
 import logging
 import re
+import asyncio
 from typing import Optional
 from tqdm import tqdm
 
@@ -13,6 +14,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 sys.path.append(project_root)
 
 from app.services.scraper_service import YuedpaoScraperService
+from playwright.async_api import async_playwright
 
 # Set logging level for console output to WARNING or ERROR when running interactive progress bars
 # to prevent logs from cluttering the progress bar display.
@@ -101,6 +103,26 @@ def save_category_to_db(cat_id: str, cat_name: str, parent_name: Optional[str], 
         parent_name=excluded.parent_name,
         url=excluded.url;
     """, (cat_id, cat_name, parent_name, url))
+    conn.commit()
+    conn.close()
+
+def check_product_exists(product_id: str) -> bool:
+    """Checks if a product details were already scraped and inserted."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM products WHERE product_id = ?", (product_id,))
+    exists = cursor.fetchone() is not None
+    conn.close()
+    return exists
+
+def save_product_category_mapping(product_id: str, category_id: str):
+    """Inserts a mapping between a product and a category."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT OR IGNORE INTO product_category_mappings (product_id, category_id)
+    VALUES (?, ?)
+    """, (product_id, category_id))
     conn.commit()
     conn.close()
 
@@ -215,7 +237,7 @@ def generate_nlp_vocabulary():
     with open(VOCAB_FILE, "w", encoding="utf-8") as f:
         json.dump(vocab_data, f, ensure_ascii=False, indent=2)
 
-def main():
+async def main_async():
     parser = argparse.ArgumentParser(description="Yuedpao E-commerce Scraper & DB Pipeline")
     parser.add_argument("--url", type=str, 
                         default="https://www.yuedpao.com/UnisexRoundNeck(%E0%B8%84%E0%B8%AD%E0%B8%81%E0%B8%A5%E0%B8%A1)2026-cat.0ycq8v-92pdg6?sorter=PRODUCT_SORTER_POPULAR",
@@ -237,106 +259,130 @@ def main():
     # Define tasks to run
     tasks = []
     
-    if args.all:
-        print("Step 1/3: Crawling website Hamburger menu structure from homepage...")
-        menu_structure = YuedpaoScraperService.run_sync_in_thread(
-            scraper.scrape_menu_structure()
-        )
-        print(f"Discovered {len(menu_structure)} main category branches.")
+    async with async_playwright() as p:
+        # Launch single browser instance for the entire run
+        browser = await p.chromium.launch(headless=True)
+        # Create standard context and page
+        context = await browser.new_context(user_agent=scraper.user_agent)
+        page = await context.new_page()
         
-        # Flatten structure into a list of categories to scrape and save to DB
-        category_count = 0
-        for main_cat, subcategories in menu_structure.items():
-            for sub in subcategories:
+        if args.all:
+            # Reuses standard viewport size for menu structure crawl inside Drawer
+            await page.set_viewport_size({"width": 375, "height": 812})
+            print("Step 1/3: Crawling website Hamburger menu structure from homepage...")
+            menu_structure = await scraper.scrape_menu_structure(page=page)
+            print(f"Discovered {len(menu_structure)} main category branches.")
+            
+            # Flatten structure into a list of categories to scrape and save to DB
+            category_count = 0
+            for main_cat, subcategories in menu_structure.items():
+                for sub in subcategories:
+                    if args.limit_categories and category_count >= args.limit_categories:
+                        break
+                        
+                    sub_id = slugify(sub["name"])
+                    # Save Category to database
+                    save_category_to_db(sub_id, sub["name"], main_cat, sub["url"])
+                    
+                    tasks.append({
+                        "category_id": sub_id,
+                        "category_name": sub["name"],
+                        "url": sub["url"]
+                    })
+                    category_count += 1
+                    
                 if args.limit_categories and category_count >= args.limit_categories:
+                    print(f"Applied limit of {args.limit_categories} categories.")
                     break
-                    
-                sub_id = slugify(sub["name"])
-                # Save Category to database
-                save_category_to_db(sub_id, sub["name"], main_cat, sub["url"])
-                
-                tasks.append({
-                    "category_id": sub_id,
-                    "category_name": sub["name"],
-                    "url": sub["url"]
-                })
-                category_count += 1
-                
-            if args.limit_categories and category_count >= args.limit_categories:
-                print(f"Applied limit of {args.limit_categories} categories.")
-                break
-    else:
-        # Fallback to single category URL
-        sub_id = slugify("เสื้อยืดคอกลม")
-        save_category_to_db(sub_id, "เสื้อยืดคอกลม", "เสื้อยืด", args.url)
-        tasks.append({
-            "category_id": sub_id,
-            "category_name": "เสื้อยืดคอกลม",
-            "url": args.url
-        })
-        
-    print(f"Step 2/3: Prepared {len(tasks)} categories to scrape.")
-    
-    total_success_count = 0
-    
-    # Step 3: Run pipeline with interactive progress bars
-    # Main outer progress bar for categories
-    pbar_categories = tqdm(tasks, desc="Overall Progress (Categories)", unit="category")
-    for task in pbar_categories:
-        cat_id = task["category_id"]
-        cat_name = task["category_name"]
-        cat_url = task["url"]
-        
-        pbar_categories.set_postfix_str(f"Current: {cat_name}")
-        
-        try:
-            # Scrape catalog list
-            catalog_products = YuedpaoScraperService.run_sync_in_thread(
-                scraper.scrape_catalog_page(cat_url)
-            )
+        else:
+            # Fallback to single category URL
+            sub_id = slugify("เสื้อยืดคอกลม")
+            save_category_to_db(sub_id, "เสื้อยืดคอกลม", "เสื้อยืด", args.url)
+            tasks.append({
+                "category_id": sub_id,
+                "category_name": "เสื้อยืดคอกลม",
+                "url": args.url
+            })
             
-            # Deduplicate items
-            unique_products = []
-            seen_ids = set()
-            for p in catalog_products:
-                if p["product_id"] and p["product_id"] not in seen_ids:
-                    seen_ids.add(p["product_id"])
-                    unique_products.append(p)
-                    
-            if args.limit:
-                unique_products = unique_products[:args.limit]
+        print(f"Step 2/3: Prepared {len(tasks)} categories to scrape.")
+        
+        # Set desktop viewport size for catalogs and product details
+        await page.set_viewport_size({"width": 1280, "height": 800})
+        
+        total_success_count = 0
+        total_skipped_count = 0
+        
+        # Step 3: Run pipeline with interactive progress bars
+        pbar_categories = tqdm(tasks, desc="Overall Progress (Categories)", unit="category")
+        for task in pbar_categories:
+            cat_id = task["category_id"]
+            cat_name = task["category_name"]
+            cat_url = task["url"]
+            
+            pbar_categories.set_postfix_str(f"Current: {cat_name}")
+            
+            try:
+                # Scrape catalog list reusing the same page
+                catalog_products = await scraper.scrape_catalog_page(cat_url, page=page)
                 
-            # Inner progress bar for products in current category
-            pbar_products = tqdm(unique_products, desc=f"   Scraping {cat_name[:20]}", leave=False, unit="item")
-            for p in pbar_products:
-                detail_url = p.get("product_url")
-                if not detail_url:
-                    slug_name = p["name"].replace(" ", "-").replace("_", "-")
-                    detail_url = f"https://www.yuedpao.com/physical/{slug_name}-{p['product_id']}"
+                # Deduplicate items
+                unique_products = []
+                seen_ids = set()
+                for p_item in catalog_products:
+                    if p_item["product_id"] and p_item["product_id"] not in seen_ids:
+                        seen_ids.add(p_item["product_id"])
+                        unique_products.append(p_item)
+                        
+                if args.limit:
+                    unique_products = unique_products[:args.limit]
                     
-                pbar_products.set_postfix_str(f"Product: {p['name'][:15]}")
-                
-                try:
-                    p_detail = YuedpaoScraperService.run_sync_in_thread(
-                        scraper.scrape_product_detail(detail_url)
-                    )
-                    if p_detail and p_detail.get("name"):
-                        save_product_to_db(p_detail, current_category_id=cat_id)
+                # Inner progress bar for products in current category
+                pbar_products = tqdm(unique_products, desc=f"   Scraping {cat_name[:20]}", leave=False, unit="item")
+                for p_item in pbar_products:
+                    p_id = p_item["product_id"]
+                    pbar_products.set_postfix_str(f"Product: {p_item['name'][:15]}")
+                    
+                    # Optimization 1: Cache checking in database
+                    # If this product has already been fully scraped from another category, 
+                    # we just add the category mapping and skip launching/visiting the network page.
+                    if check_product_exists(p_id):
+                        save_product_category_mapping(p_id, cat_id)
                         total_success_count += 1
-                except Exception as e:
-                    # Silence print inside tqdm to keep progress bar clean
-                    pass
-            pbar_products.close()
-        except Exception as e:
-            pass
-            
-    pbar_categories.close()
-    print(f"Scraping pipeline completed. Successfully imported {total_success_count} product variants into the database.")
+                        total_skipped_count += 1
+                        continue
+                    
+                    detail_url = p_item.get("product_url")
+                    if not detail_url:
+                        slug_name = p_item["name"].replace(" ", "-").replace("_", "-")
+                        detail_url = f"https://www.yuedpao.com/physical/{slug_name}-{p_id}"
+                        
+                    try:
+                        # Scrape product details reusing the same page
+                        p_detail = await scraper.scrape_product_detail(detail_url, page=page)
+                        if p_detail and p_detail.get("name"):
+                            save_product_to_db(p_detail, current_category_id=cat_id)
+                            total_success_count += 1
+                    except Exception as e:
+                        # Keep tqdm clean by avoiding prints
+                        pass
+                pbar_products.close()
+            except Exception as e:
+                pass
+                
+        pbar_categories.close()
+        await browser.close()
+        
+    print(f"Scraping pipeline completed. Successfully imported {total_success_count} products (Skipped {total_skipped_count} repeats from cache).")
     
     # Step 4: Generate NLP Vocab
     print("Step 3/3: Re-generating NLP Domain Vocabulary from latest Database...")
     generate_nlp_vocabulary()
     print("NLP Domain Vocabulary generated successfully.")
+
+def main():
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()
