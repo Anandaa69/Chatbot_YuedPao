@@ -1,0 +1,702 @@
+[
+  {
+    "id": "QA-01",
+    "query": "อยากได้เสื้อโปโล Running Roulette สี Dark Gray",
+    "expected_keyword": "Running Roulette",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-02",
+    "query": "เสื้อยืดรุ่น Kodnum สี Black มีไหม",
+    "expected_keyword": "Kodnum",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-03",
+    "query": "เสื้อยืด Ultrasoft คอกลมสี Smoke Gray",
+    "expected_keyword": "Smoke Gray",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-04",
+    "query": "อยากได้ Running Roulette สีฟ้า",
+    "expected_keyword": "Running Roulette",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-05",
+    "query": "Ultrasoft V Neck สี Lavender",
+    "expected_keyword": "Lavender",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-06",
+    "query": "เสื้อ Tailor Cool สีขาว",
+    "expected_keyword": "Tailor Cool",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-07",
+    "query": "กางเกงยีนส์สีดำทรงหลวม",
+    "expected_keyword": "ยีนส์",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-08",
+    "query": "Ultrasoft Long-sleeve สี Coffee Brown",
+    "expected_keyword": "Coffee Brown",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-09",
+    "query": "Crop Oversized สีลาย Striped",
+    "expected_keyword": "Striped",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-10",
+    "query": "เสื้อ Y Collection Polo 2025 สีเทา",
+    "expected_keyword": "Y Collection",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-11",
+    "query": "Kodnum สี Maroon มีไหม",
+    "expected_keyword": "Maroon",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-12",
+    "query": "เสื้อ Oversize สี Cream",
+    "expected_keyword": "Cream",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-13",
+    "query": "Ultrasoft Non-Iron ทรงผู้หญิงสี White",
+    "expected_keyword": "Non-Iron",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-14",
+    "query": "เสื้อมัดย้อม Sleeveless สีพาสเทล",
+    "expected_keyword": "Sleeveless",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-15",
+    "query": "Polo Long Sleeve สี Navy",
+    "expected_keyword": "Navy",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-16",
+    "query": "เสื้อยืด Oversize MUNIMAL สีดำ",
+    "expected_keyword": "MUNIMAL",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-17",
+    "query": "Babytee สีขาวมีไหม",
+    "expected_keyword": "Babytee",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-18",
+    "query": "Kids Ringer สีแดง",
+    "expected_keyword": "Kids Ringer",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-19",
+    "query": "เสื้อโอเวอร์ไซส์ Tie Dye สี Oasis",
+    "expected_keyword": "Oasis",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-20",
+    "query": "Ultrasoft คอวีสี Mint Green",
+    "expected_keyword": "Mint",
+    "max_price": null,
+    "category": "Exact Model & Color"
+  },
+  {
+    "id": "QA-21",
+    "query": "อยากได้เสื้อใส่วิ่งออกกำลังกาย เย็นสบาย ไม่ร้อน",
+    "expected_keyword": "Running",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-22",
+    "query": "เสื้อผ้านุ่มๆ ยับยาก ไม่ต้องรีด",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-23",
+    "query": "อยากได้เสื้อสวมใส่สบาย ผ้าระบายความร้อนได้ดี ใส่ตอนออกกำลังกายได้",
+    "expected_keyword": "Running",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-24",
+    "query": "ขอเสื้อผ้าใส่ทำงานสบายๆ ไม่ยับง่าย ดูดีตลอดวัน",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-25",
+    "query": "เสื้อสีเรียบๆ ใส่ได้ทุกโอกาส ผ้าเนียนนุ่ม",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-26",
+    "query": "หาเสื้อมัดย้อมใส่เที่ยว สีสวย โทนสดใส",
+    "expected_keyword": "Tie Dye",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-27",
+    "query": "เสื้อแขนสั้นทรงหลวมใส่กับกางเกงขายาวได้ดี",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-28",
+    "query": "เสื้อสีพาสเทลสบายตา ใส่ไปเรียน",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-29",
+    "query": "อยากได้เสื้อครอปน่ารักใส่คู่กับกางเกง",
+    "expected_keyword": "Crop",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-30",
+    "query": "ขอเสื้อยืดเนื้อผ้าฝ้ายเย็นๆ ใส่ทั้งวัน",
+    "expected_keyword": "Classic Cotton",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-31",
+    "query": "เสื้อผ้าที่ซักแล้วไม่หด ไม่ยับ ใส่ง่ายทุกวัน",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-32",
+    "query": "ขอเสื้อผ้าที่ใส่แล้วไม่ร้อน ระบายอากาศดี เหมาะกับอากาศไทย",
+    "expected_keyword": "Running",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-33",
+    "query": "เสื้อสีสวยๆ ใส่เดินห้างฯ ดูสะอาด ไม่ดูบ้านๆ",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-34",
+    "query": "อยากได้เสื้อผ้าที่นุ่มเบา ใส่สบายทั้งวันแม้อากาศร้อน",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-35",
+    "query": "เสื้อยีนส์ฟอกสีดูวินเทจ ใส่เที่ยว",
+    "expected_keyword": "Bleached",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-36",
+    "query": "หาเสื้อโอเวอร์ไซส์ผ้าหนานิดหน่อย ทรงดรอปช่วงไหล่",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-37",
+    "query": "เสื้อสำหรับวันพักผ่อน ใส่สบายๆ ไม่ต้องดูสวยมาก",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-38",
+    "query": "ผ้าที่ทำจากฝ้ายธรรมชาติ เย็นและสบาย",
+    "expected_keyword": "Classic Cotton",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-39",
+    "query": "เสื้อแขนกุดสำหรับอากาศร้อน ใส่แล้วไม่อึดอัด",
+    "expected_keyword": "Sleeveless",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-40",
+    "query": "เสื้อผ้าที่ดูแลง่าย ซักแล้วแห้งเร็ว ไม่ต้องรีด",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Natural Language Fabric Touch"
+  },
+  {
+    "id": "QA-41",
+    "query": "ขอเสื้อครอปผ้านุ่มราคาไม่เกิน 100 บาท",
+    "expected_keyword": "Crop",
+    "max_price": 100,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-42",
+    "query": "หาเสื้อยืด oversize งบไม่เกิน 250 บาท",
+    "expected_keyword": "Oversize",
+    "max_price": 250,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-43",
+    "query": "เสื้อยืดแขนยาวราคาไม่เกิน 200 บาท",
+    "expected_keyword": "แขนยาว",
+    "max_price": 200,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-44",
+    "query": "อยากได้เสื้อยืดน่ารักๆ ราคาไม่เกิน 150 บาท",
+    "expected_keyword": "Ultrasoft",
+    "max_price": 150,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-45",
+    "query": "เสื้อสำหรับเด็กราคาไม่เกิน 200 บาท",
+    "expected_keyword": "Kids",
+    "max_price": 200,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-46",
+    "query": "ขอเสื้อ unisex งบ 190 บาท",
+    "expected_keyword": "Unisex",
+    "max_price": 190,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-47",
+    "query": "เสื้อมัดย้อมราคาไม่เกิน 400 บาท",
+    "expected_keyword": "Tie Dye",
+    "max_price": 400,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-48",
+    "query": "หาเสื้อผ้านุ่มๆ ไม่เกิน 200",
+    "expected_keyword": "Ultrasoft",
+    "max_price": 200,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-49",
+    "query": "อยากได้เสื้อโปโลสวยๆ ราคาไม่เกิน 400",
+    "expected_keyword": "Polo",
+    "max_price": 400,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-50",
+    "query": "ขอเสื้อ Classic Cotton ราคาไม่เกิน 300 บาท",
+    "expected_keyword": "Classic Cotton",
+    "max_price": 300,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-51",
+    "query": "เสื้อแขนสั้นงบไม่เกิน 190 บาท",
+    "expected_keyword": "Ultrasoft",
+    "max_price": 190,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-52",
+    "query": "อยากได้เสื้อ Crop ผ้านุ่มงบ 150 บาท",
+    "expected_keyword": "Crop",
+    "max_price": 150,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-53",
+    "query": "เสื้อโอเวอร์ไซส์ราคาถูกไม่เกิน 250 บาท",
+    "expected_keyword": "Oversize",
+    "max_price": 250,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-54",
+    "query": "ขอเสื้อยืดสำหรับเด็ก งบ 100 บาท",
+    "expected_keyword": "Kids",
+    "max_price": 100,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-55",
+    "query": "เสื้อแขนกุดมัดย้อมราคาไม่เกิน 350 บาท",
+    "expected_keyword": "Sleeveless",
+    "max_price": 350,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-56",
+    "query": "เสื้อยืดผู้ชายราคาไม่เกิน 200",
+    "expected_keyword": "Oversize",
+    "max_price": 200,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-57",
+    "query": "ขอเสื้อยืดที่ราคาไม่แพง งบประมาณ 180 บาท",
+    "expected_keyword": "Ultrasoft",
+    "max_price": 180,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-58",
+    "query": "กางเกงยีนส์งบไม่เกิน 400 บาท",
+    "expected_keyword": "ยีนส์",
+    "max_price": 400,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-59",
+    "query": "เสื้อ Babytee ราคาไม่เกิน 150 บาท",
+    "expected_keyword": "Babytee",
+    "max_price": 150,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-60",
+    "query": "หาเสื้อสีดำผ้านุ่มงบไม่เกิน 200 บาท",
+    "expected_keyword": "Ultrasoft",
+    "max_price": 200,
+    "category": "Price Boundary"
+  },
+  {
+    "id": "QA-61",
+    "query": "เสื้อมัดย้อมโอเวอไซผ้านุ่ม",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-62",
+    "query": "เสื้อคอกมสีขาว ไซส์ L",
+    "expected_keyword": "คอกลม",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-63",
+    "query": "เกงยีนส์ทรงหลวมสีดำ",
+    "expected_keyword": "ยีนส์",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-64",
+    "query": "เสือยืดอลตราซอฟผ้านุ่ม",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-65",
+    "query": "เสือครอปน่ารักสีสว่าง",
+    "expected_keyword": "Crop",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-66",
+    "query": "ขอเสือยืดโอเวอร์ไซสีดำ",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-67",
+    "query": "ยืดโคตนุ่มสีขาว",
+    "expected_keyword": "Kodnum",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-68",
+    "query": "เสือผ้ายับยาก ไม่ต้องรีด ผ้านุ่ม",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-69",
+    "query": "รันนิ่งรูเล็ต สีเทา",
+    "expected_keyword": "Running Roulette",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-70",
+    "query": "อยากได้เสื้อผ้าแขนกุดมัดยอม",
+    "expected_keyword": "Sleeveless",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-71",
+    "query": "เสื้อโปโลยืดปก สีกรม",
+    "expected_keyword": "Polo",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-72",
+    "query": "เสือมัดย้อมแขนยาวสีสวย",
+    "expected_keyword": "Tie Dye",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-73",
+    "query": "เสื้อยืดทรงหญิงคอวีผ้านุ่มๆ",
+    "expected_keyword": "คอวี",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-74",
+    "query": "หาเสื้อโคตนุ่มสีขาวๆ",
+    "expected_keyword": "Kodnum",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-75",
+    "query": "เสื้อยืดโอเวอไซส์ผ้าหนา",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-76",
+    "query": "เสื้อ ทเลอคูล สีเทา",
+    "expected_keyword": "Tailor Cool",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-77",
+    "query": "เสื้อแขนสันผ้นุ่มทรงโอเวอไซ",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-78",
+    "query": "ขอดูเสือยืด kidซ ผ้าเนียน",
+    "expected_keyword": "Kids",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-79",
+    "query": "เสื้อฟัดย้อมสีพาสเทล",
+    "expected_keyword": "Tie Dye",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-80",
+    "query": "เสื้อยืดอัลตาซอฟคอกลมสีขาว",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Typo Resilience"
+  },
+  {
+    "id": "QA-81",
+    "query": "เสื้อยืดสำหรับเด็ก ลายน่ารักๆ",
+    "expected_keyword": "Kids",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-82",
+    "query": "เสื้อทรงผู้หญิง mini t-shirt สีพาสเทล",
+    "expected_keyword": "Mini T-Shirt",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-83",
+    "query": "เสื้อแขนกุดมัดย้อมสไตล์ซัมเมอร์",
+    "expected_keyword": "Sleeveless",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-84",
+    "query": "อยากได้เสื้อคอวีทรงผู้หญิง ผ้านุ่ม ใส่สบาย",
+    "expected_keyword": "คอวี",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-85",
+    "query": "ขอเสื้อ unisex ใส่ได้ทั้งผู้ชายผู้หญิง ผ้า ultrasoft",
+    "expected_keyword": "Unisex",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-86",
+    "query": "เสื้อสำหรับเด็กผ้านุ่มไม่ระคายเคืองผิว",
+    "expected_keyword": "Kids",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-87",
+    "query": "เสื้อสำหรับผู้หญิงทรงครอปน่ารัก สีเรียบ",
+    "expected_keyword": "Crop",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-88",
+    "query": "เสื้อสำหรับคนอ้วน ทรงโอเวอร์ไซส์ซ่อนพุง",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-89",
+    "query": "อยากได้เสื้อโปโลสุภาพใส่ทำงานใส่ประชุมได้",
+    "expected_keyword": "Polo",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-90",
+    "query": "ของขวัญให้เด็กผ้า ultrasoft นุ่มสบาย",
+    "expected_keyword": "Kids",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-91",
+    "query": "เสื้อสำหรับวัยรุ่นชาย ทรงหล่อ ใส่แล้วดูสปอร์ต",
+    "expected_keyword": "Running",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-92",
+    "query": "ขอเสื้อสำหรับแม่บ้านใส่ทำงานบ้าน ผ้าบางเบา",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-93",
+    "query": "เสื้อสำหรับผู้ชายตัวผอม ผ้าดีดูดี",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-94",
+    "query": "ขอเสื้อยืดสำหรับผู้หญิงอกใหญ่ เผื่อไหล่",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-95",
+    "query": "เสื้อสำหรับเด็กอนุบาล สีสดใส ลายน่ารัก",
+    "expected_keyword": "Kids",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-96",
+    "query": "ขอเสื้อครอปสำหรับสาวๆ ใส่เที่ยวทะเล",
+    "expected_keyword": "Crop",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-97",
+    "query": "เสื้อผู้ชายใส่ไปงานสังสรรค์ ดูดี สีเรียบ",
+    "expected_keyword": "Polo",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-98",
+    "query": "เสื้อสำหรับนักเรียนมหาวิทยาลัย ราคาถูก ใส่สบาย",
+    "expected_keyword": "Ultrasoft",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-99",
+    "query": "เสื้อสำหรับคุณแม่ตั้งครรภ์ ทรงหลวม ผ้านุ่ม",
+    "expected_keyword": "Oversize",
+    "max_price": null,
+    "category": "Target Persona"
+  },
+  {
+    "id": "QA-100",
+    "query": "ขอเสื้อสำหรับพนักงานบริษัท ดูสะอาดเรียบร้อย ใส่ประจำ",
+    "expected_keyword": "Polo",
+    "max_price": null,
+    "category": "Target Persona"
+  }
+]
