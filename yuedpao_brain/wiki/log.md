@@ -9,6 +9,32 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-25] - Session 5: RRF Hybrid Search Optimization, 100 QA Benchmark & Document Expansion
+
+### 🎯 Key Accomplishments
+1. **QA Benchmark Dataset & Evaluation Infrastructure Rebuild**:
+   - Created `notebooks/intent_rank/qa_benchmark_100.json` containing 100 ground-truth scenarios across 5 categories (20 each): Exact Model & Color, Natural Language Fabric Touch, Price Boundary, Typo Resilience, Target Persona.
+   - Rebuilt `notebooks/intent_rank/rrf_test.ipynb` with 9 complete steps including 100 QA dataset evaluation (Hit Rate@5, MRR@5, P95 Latency, per-category breakdown).
+
+2. **RRF Query Pipeline Constraint Validated**:
+   - Discovered and validated that Tier 0 `correct_spelling()` must NOT pre-process queries before RRF Hybrid Search (degrades Hit Rate@5 from 92% to 86% due to stopword removal stripping price/size terms).
+   - Saved as Section 5 in `.agents/rules/thai_nlp_chatbot_architecture.md`.
+
+3. **Document Expansion Implementation**:
+   - Implemented Document Expansion in Step 3 of `rrf_test.ipynb` injecting Thai/English synonym aliases, color translations, and persona usage keywords directly into composite document passages (`passage: ...`).
+   - Saved as Section 6 (Document Expansion) and Section 7 (QA Benchmark Standard) in `.agents/rules/thai_nlp_chatbot_architecture.md`.
+
+4. **Embedding Model Experimentation**:
+   - Tested `mrp/SimCSE-model-WangchanBERTa-V2` vs `intfloat/multilingual-e5-small`. Confirmed `multilingual-e5-small` remains optimal for semantic retrieval; restored notebook to `multilingual-e5-small`.
+
+### ⏳ Current Status & Next Action Steps
+- **Notebook State**: `notebooks/intent_rank/rrf_test.ipynb` is clean, updated with Document Expansion + 100 QA dataset + `intfloat/multilingual-e5-small`, ready for execution.
+- **Next Steps when returning**:
+  1. Open and run `rrf_test.ipynb` (or execute via script) to measure new Hit Rate@5 with Document Expansion.
+  2. Implement SQL/Python Post-filtering for Price Boundary queries in `app/services/product_service.py`.
+
+---
+
 ## 📅 [2026-08-25] - Session 4: Unified Rules Synchronization & Obsidian-Graphify Workflow Enforcement
 
 ### 🎯 Key Accomplishments

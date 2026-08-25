@@ -29,3 +29,20 @@ description: Guidelines for Thai NLP Intent Classification and Hybrid Product Se
   import sys
   sys.stdout.reconfigure(encoding='utf-8')
   ```
+
+## 5. Tier 0 / RRF Query Separation Rule
+* **Rule:** Tier 0 spell correction (`correct_spelling()`) must ONLY be used inside the **Intent Classification pipeline**. The raw unchanged query (`raw_query`) must ALWAYS be passed to RRF Hybrid Search.
+  * ✅ Intent Classification: `raw_query` ──► `correct_spelling()` ──► Tier 1/2.5/3
+  * ✅ Product Search: `raw_query` ──► `rrf_hybrid_search(raw_query)`
+  * ❌ **DO NOT** pass `corrected_query` to RRF Hybrid Search directly.
+* **Rationale:** `correct_spelling()` filters Thai stopwords, which destroys semantic context needed by BM25 and Vector Search, causing Hit Rate@5 to drop from 92% to 86% (Price Boundary queries collapse by -30%).
+
+## 6. Document Expansion for Synonym & Persona Matching
+* **Rule:** When indexing products into ChromaDB and BM25, inject Thai/English synonym aliases, color translations, and persona usage keywords directly into document composite text before indexing:
+  * Fabric aliases: `Classic Cotton (ผ้าฝ้าย, ฝ้าย, ฝ้ายธรรมชาติ)`, `Ultrasoft (ผ้านุ่ม, นุ่มพิเศษ, ไม่ยับ, ไม่ต้องรีด)`, `Tailor Cool (ผ้าเย็น, ระบายอากาศ, ใส่ไม่ร้อน)`
+  * Color aliases: `Cream (ครีม, สีครีม, Vanilla)`, `Mint (มิ้นท์, สีมิ้นท์, Mint Green)`, `Dark Gray (เทาเข้ม, เทาดำ)`
+  * Style & Persona aliases: `Oversize (ทรงหลวม, อกใหญ่, ไหล่ตก, คนอ้วน, ตั้งครรภ์, ตัวใหญ่)`, `Kids (เด็ก, เสื้อเด็ก, ของขวัญเด็ก, เด็กอนุบาล)`, `Polo (ใส่ทำงาน, พนักงานบริษัท, สุภาพ, งานสังสรรค์)`
+* **Rationale:** Document expansion allows BM25 and Vector Search to match synonym queries directly without altering the user's raw query string.
+
+## 7. QA Benchmark Standard
+* **Rule:** The canonical benchmark dataset for RRF search evaluation is `notebooks/intent_rank/qa_benchmark_100.json` (100 scenarios across 5 categories: Exact Model & Color, Natural Language Fabric Touch, Price Boundary, Typo Resilience, Target Persona).
