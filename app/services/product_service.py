@@ -7,7 +7,7 @@ import re
 import sqlite3
 import random
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 try:
     import chromadb
@@ -24,18 +24,18 @@ try:
 except ImportError:
     word_tokenize = None
 
-# --- Synonym & Preprocessing Dictionaries ---
+# --- Synonym & Preprocessing Dictionaries (Document Expansion 2.0) ---
 FABRIC_SYNONYMS = {
-    "Classic Cotton": "ผ้าฝ้าย ฝ้าย ฝ้ายธรรมชาติ",
-    "Ultrasoft": "ผ้านุ่ม นุ่มพิเศษ ไม่ยับ ไม่ต้องรีด อัลตราซอฟ อลตราซอฟ อัลตาซอฟ อัลตราซอฟท์ โคตรนุ่ม โคตนุ่ม ใส่สบาย",
-    "Tailor Cool": "ผ้าเย็น ระบายอากาศ ใส่ไม่ร้อน เทเลอร์คูล เทเลอร์ คูล ทเลอคูล ใส่สบาย",
+    "Classic Cotton": "ผ้าฝ้าย ฝ้าย ฝ้ายธรรมชาติ ผิวแพ้ง่าย ไม่คัน เนื้อผ้าแน่น ทรงตรง ไม่ยืดหลังซัก พักผ่อน สบาย",
+    "Ultrasoft": "ผ้านุ่ม นุ่มพิเศษ ไม่ยับ ไม่ต้องรีด อัลตราซอฟ อลตราซอฟ อัลตาซอฟ อัลตราซอฟท์ อัลตาซอฟท์ โคตรนุ่ม โคตนุ่ม ใส่สบาย สบายตา ผิวสัมผัสนุ่ม เดินห้าง แม่บ้าน ออฟฟิศ IT",
+    "Tailor Cool": "ผ้าเย็น ระบายอากาศ ใส่ไม่ร้อน เทเลอร์คูล เทเลอร์ คูล ทเลอคูล ใส่สบาย ไม่หมองจากเหงื่อ ไม่หมอง สุภาพ ขับรถ ออฟฟิศ",
     "Ecotech": "ผ้านุ่มรักษ์โลก"
 }
 
 COLOR_SYNONYMS = {
-    "Cream": "ครีม สีครีม Vanilla ครีมมี่ Creamy",
-    "Creamy": "ครีม สีครีม Vanilla ครีมมี่ Creamy",
-    "Vanilla": "ครีม สีครีม Vanilla ครีมมี่ Creamy",
+    "Cream": "ครีม สีครีม Vanilla ครีมมี่ Creamy วานิลลา",
+    "Creamy": "ครีม สีครีม Vanilla ครีมมี่ Creamy วานิลลา",
+    "Vanilla": "ครีม สีครีม Vanilla ครีมมี่ Creamy วานิลลา",
     "Mint": "มิ้นท์ สีมิ้นท์ Mint Green มิสกรีน Misgreen Mist Green",
     "Mist Green": "มิ้นท์ สีมิ้นท์ Mint Green มิสกรีน Misgreen Mist Green",
     "Dark Gray": "เทาเข้ม เทาดำ Smoke Gray Smock Gray เทา",
@@ -48,17 +48,6 @@ COLOR_SYNONYMS = {
     "Black": "ดำ สีดำ Black"
 }
 
-PERSONA_SYNONYMS = {
-    "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง",
-    "Kid": "เด็ก เสื้อเด็ก ของขวัญเด็ก เด็กอนุบาล ลายน่ารัก kidซ คิดส์ คิด",
-    "Polo": "ใส่ทำงาน พนักงานบริษัท สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ",
-    "Crop": "เสื้อครอป น่ารัก สาวๆ เที่ยวทะเล คอกลม",
-    "Running": "ใส่วิ่ง ออกกำลังกาย ระบายความร้อน อากาศไทย ไม่ร้อน รันนิ่ง",
-    "Tie Dye": "มัดย้อม ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม",
-    "Sleeveless": "แขนกุด อากาศร้อน ไม่อึดอัด เสื้อกล้าม",
-    "Running Roulette": "รันนิ่งรูเล็ต รันนิ่ง รูเล็ต เสื้อฟอก วินเทจ"
-}
-
 STYLE_SYNONYMS = {
     "Round Neck": "คอกลม คอกม คอกลมปกติ",
     "V Neck": "คอวี วี",
@@ -67,8 +56,59 @@ STYLE_SYNONYMS = {
     "Unisex": "ผู้ชาย ผู้หญิง ชาย หญิง Unisex ใส่ได้ทั้งชายและหญิง"
 }
 
+PERSONA_SYNONYMS = {
+    "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง สาวอวบ ซ่อนหน้าท้อง ซ่อนพุง คนท้อง",
+    "Kid": "เด็ก เสื้อเด็ก ของขวัญเด็ก เด็กอนุบาล ลายน่ารัก kidซ คิดส์ คิด",
+    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่",
+    "Crop": "เสื้อครอป น่ารัก สาวๆ เที่ยวทะเล คอกลม ทรงสั้นเอว เอวสูง ตัวเล็ก",
+    "Running": "ใส่วิ่ง ออกกำลังกาย ระบายอากาศ ระบายความร้อน อากาศไทย ไม่ร้อน รันนิ่ง สปอร์ต เดินป่า ไม่หมองจากเหงื่อ ไม่มีกลิ่นเหงื่อ",
+    "Tie Dye": "มัดย้อม ไทด์ดาย ไทน์ดาย ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม ถ่ายรูป content อาร์ต สตรีท",
+    "Sleeveless": "แขนกุด อากาศร้อน ไม่อึดอัด เสื้อกล้าม โยคะ ยืดหยุ่น",
+    "Running Roulette": "รันนิ่งรูเล็ต รันนิ่ง รูเล็ต เสื้อฟอก วินเทจ",
+    "Babytee": "เบบี้ที เบบี้ทีส์ เสื้อตัวเล็ก เสื้อยืดตัวเล็ก เบบี้ทีมูนิมอล"
+}
+
 KODNUM_SYNONYMS = {
     "Kodnum": "โคตรนุ่ม โคตนุ่ม โคตรนุม โคตนุม"
+}
+
+COLOR_KEYWORDS_MAP = {
+    "vanilla": ["vanilla", "วานิลลา", "ครีม", "cream"],
+    "cream": ["ครีม", "cream", "vanilla", "วานิลลา"],
+    "mint": ["mint", "มิ้นท์", "มิสกรีน", "mist green"],
+    "smoke gray": ["smoke gray", "smock gray", "เทาควันบุหรี่", "เทาเข้ม", "เทาดำ"],
+    "dark gray": ["dark gray", "เทาเข้ม", "เทาดำ"],
+    "coffee brown": ["coffee brown", "น้ำตาล", "กาแฟ"],
+    "maroon": ["maroon", "แดงเลือดหมู", "แดงเข้ม"],
+    "lavender": ["lavender", "ม่วงพาสเทล", "ม่วงลาเวนเดอร์"],
+    "white": ["white", "ขาว", "สีขาว"],
+    "black": ["black", "ดำ", "สีดำ"],
+    "navy": ["navy", "สีกรม", "กรม"],
+    "forest green": ["forest green", "เขียวฟอเรสต์", "เขียวเข้ม"],
+    "wine": ["wine", "สีไวน์", "ไวน์"],
+    "dusty pink": ["dusty pink", "ชมพูดัสตี้", "ชมพู"],
+    "olive green": ["olive green", "เขียวโอลิฟ", "เขียวขี้ม้า"],
+    "sky blue": ["sky blue", "ฟ้า", "สีฟ้า"],
+    "lemon yellow": ["lemon yellow", "เหลือง"],
+    "peach": ["peach", "พีช"],
+    "neon green": ["neon green", "เขียวนีออน"],
+    "chocolate brown": ["chocolate brown", "น้ำตาลช็อคโกแลต"],
+    "sunset": ["sunset", "ซันเซ็ท"],
+    "peony": ["peony", "พีโอนี"]
+}
+
+INTENT_MAP_KEYWORDS = {
+    "polo": ["โปโล", "polo", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่"],
+    "babytee": ["เบบี้ที", "babytee", "baby tee", "เสื้อตัวเล็ก"],
+    "ultrasoft": ["ผ้านุ่ม", "ไม่ยับ", "ไม่ต้องรีด", "อัลตราซอฟ", "อลตราซอฟ", "อัลตราซอฟท์", "โคตรนุ่ม", "โคตนุ่ม", "เดินห้าง", "สบายตา"],
+    "classic cotton": ["ฝ้าย", "cotton", "ผิวแพ้ง่าย", "ไม่คัน", "เนื้อผ้าแน่น", "ทรงตรง", "ไม่ยืดหลังซัก"],
+    "tailor cool": ["ผ้าเย็น", "ไม่ร้อน", "เทเลอร์คูล", "ทเลอคูล", "ไม่หมอง", "ขับรถ"],
+    "oversize": ["ทรงหลวม", "อกใหญ่", "ไหล่ตก", "คนอ้วน", "ตั้งครรภ์", "ตัวใหญ่", "โอเวอไซ", "โอเวอร์ไซส์", "สาวอวบ", "ซ่อนพุง", "คนท้อง"],
+    "tie dye": ["มัดย้อม", "ไทด์ดาย", "ไทน์ดาย", "ซัมเมอร์", "สีสดใส", "มัดยอม", "ฟัดย้อม", "ถ่ายรูป content", "อาร์ต"],
+    "crop": ["ครอป", "crop", "ทรงสั้นเอว", "เอวสูง"],
+    "sleeveless": ["แขนกุด", "เสื้อกล้าม", "โยคะ"],
+    "running": ["วิ่ง", "ออกกำลังกาย", "ระบายเหงื่อ", "รันนิ่ง", "เดินป่า", "ไม่มีกลิ่นเหงื่อ"],
+    "jeans": ["ยีนส์", "เกงยีนส์", "กางเกงยีนส์", "เดนิม"]
 }
 
 
@@ -83,11 +123,9 @@ class ProductService:
         return cls._instance
 
     def __init__(self):
-        # Determine paths
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.db_path = os.path.join(base_dir, "yuedpao_chatbot.db")
         
-        # Load SentenceTransformer model
         self.bert_model = None
         if SentenceTransformer:
             try:
@@ -95,14 +133,12 @@ class ProductService:
             except Exception as e:
                 print(f"⚠️ Warning: Could not load SentenceTransformer in ProductService: {e}")
 
-        # Fetch products from SQLite
         self.products = []
         self.doc_ids = []
         self.documents = []
         self.metadatas = []
         self._load_products_from_db()
 
-        # Initialize ChromaDB Vector Store (in-memory)
         self.chroma_collection = None
         if chromadb and self.bert_model and self.documents:
             try:
@@ -118,7 +154,6 @@ class ProductService:
             except Exception as e:
                 print(f"⚠️ Warning: Could not initialize ChromaDB in ProductService: {e}")
 
-        # Initialize BM25 Model
         self.bm25_model = None
         self.bm25_corpus = []
         if self.documents and word_tokenize:
@@ -199,7 +234,6 @@ class ProductService:
             self.documents.append(doc_text)
             self.doc_ids.append(f"prod_{p['product_id']}")
             
-            # Align metadata for keyword compatibility in downstream filters/evaluations
             cat_val = p["category"]
             if p["style"]:
                 cat_val = cat_val + " " + p["style"]
@@ -270,18 +304,34 @@ class ProductService:
             return int(match2.group(1))
         return None
 
+    def _detect_query_intents(self, query: str) -> List[str]:
+        q_lower = query.lower()
+        detected = []
+        for intent_tag, kw_list in INTENT_MAP_KEYWORDS.items():
+            if any(kw in q_lower for kw in kw_list):
+                detected.append(intent_tag)
+        return detected
+
+    def _detect_query_colors(self, query: str) -> List[str]:
+        q_lower = query.lower()
+        detected_cols = []
+        for col_key, kw_list in COLOR_KEYWORDS_MAP.items():
+            if any(kw in q_lower for kw in kw_list):
+                detected_cols.append(col_key)
+        return detected_cols
+
     def search_products(self, raw_query: str, top_k: int = 15, k_constant: int = 60) -> List[Dict[str, Any]]:
         """
         Main entry point for product retrieval. Combines BM25 and Vector DB search 
-        using Reciprocal Rank Fusion (RRF), with integrated hard price filtering.
-        
-        Returns a list of raw product dictionaries containing metadata ready for carousel rendering.
+        using Reciprocal Rank Fusion (RRF), with integrated Intent Boost, Color Match Boost,
+        and Smart Price Fallback.
         """
-        # Fallback if indices are not built
         if not self.documents:
             return []
 
         max_price = self._extract_max_price(raw_query)
+        detected_intents = self._detect_query_intents(raw_query)
+        requested_colors = self._detect_query_colors(raw_query)
 
         # 1. BM25 ranks
         bm25_scores = [0.0] * len(self.documents)
@@ -297,26 +347,53 @@ class ProductService:
             chroma_results = self.chroma_collection.query(query_embeddings=[query_emb], n_results=len(self.documents))
             vector_rank_map = {doc_id: rank + 1 for rank, doc_id in enumerate(chroma_results["ids"][0])}
 
-        # 3. RRF fusion with hard price constraints
-        rrf_scores = {}
-        for bm25_rank, idx in enumerate(bm25_ranked_indices):
-            doc_id = self.doc_ids[idx]
-            meta = self.metadatas[idx]
-            price = meta["price"]
+        # 3. RRF Fusion Helper
+        def compute_rrf(apply_price_filter: bool):
+            scores = {}
+            for bm25_rank, idx in enumerate(bm25_ranked_indices):
+                doc_id = self.doc_ids[idx]
+                meta = self.metadatas[idx]
+                price = meta["price"]
 
-            # Filter out products exceeding budget
-            if max_price is not None and price > max_price:
-                continue
+                if apply_price_filter and max_price is not None and price > max_price:
+                    continue
 
-            r_bm25 = bm25_rank + 1
-            r_vec = vector_rank_map.get(doc_id, 9999)
-            
-            rrf_scores[doc_id] = {
-                "score": (1.0 / (k_constant + r_bm25)) + (1.0 / (k_constant + r_vec)),
-                "metadata": meta
-            }
+                r_bm25 = bm25_rank + 1
+                r_vec = vector_rank_map.get(doc_id, 9999)
+                base_score = (1.0 / (k_constant + r_bm25)) + (1.0 / (k_constant + r_vec))
 
-        # Sort and return up to top_k products
+                item_haystack = f"{meta['name']} {meta['category']} {meta['fabric']} {meta['style']} {self.documents[idx]}".lower()
+
+                # Intent Boost (1.25x)
+                intent_boost = 1.0
+                if detected_intents and any(tag in item_haystack for tag in detected_intents):
+                    intent_boost = 1.25
+
+                # Color Match Boost (1.30x)
+                color_boost = 1.0
+                if requested_colors:
+                    item_color_text = f"{meta['name']} {meta['colors'] or ''}".lower()
+                    for req_col in requested_colors:
+                        syn_list = COLOR_KEYWORDS_MAP.get(req_col, [req_col])
+                        if any(syn in item_color_text for syn in syn_list):
+                            color_boost = 1.30
+                            break
+
+                final_score = base_score * intent_boost * color_boost
+
+                scores[doc_id] = {
+                    "score": final_score,
+                    "metadata": meta
+                }
+            return scores
+
+        # 1. Search with strict budget constraint
+        rrf_scores = compute_rrf(apply_price_filter=True)
+
+        # 2. Smart Price Fallback: Relax price constraint if 0 items in budget
+        if not rrf_scores and max_price is not None:
+            rrf_scores = compute_rrf(apply_price_filter=False)
+
         sorted_rrf = sorted(rrf_scores.items(), key=lambda x: x[1]["score"], reverse=True)[:top_k]
         return [res[1]["metadata"] for res in sorted_rrf]
 
@@ -329,25 +406,19 @@ class ProductService:
         if not candidate_pool:
             return []
 
-        # 1. Exclude recently shown product IDs
         fresh_pool = [
             item for item in candidate_pool 
             if item["product_id"] not in session_history
         ]
         
-        # 2. Fallback to full pool if fresh pool is depleted (< 5)
         if len(fresh_pool) < 5:
             fresh_pool = candidate_pool
             
-        # 3. Fair Random Sampling
         sample_size = min(len(fresh_pool), 5)
         selected_items = random.sample(fresh_pool, sample_size)
         
-        # 4. Update session history cache (keep last 10 product_ids)
         new_shown_ids = [item["product_id"] for item in selected_items]
         session_history.extend(new_shown_ids)
         
-        # Mutate list to keep the last 10 elements in-place
         del session_history[:-10]
-        
         return selected_items
