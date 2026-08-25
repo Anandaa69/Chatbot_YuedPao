@@ -1,7 +1,0 @@
-{
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
-    "git.enabled": true,
-    "git.decorations.enabled": true,
-    "git.autorefresh": true,
-    "python-envs.defaultEnvManager": "ms-python.python:system"
-}

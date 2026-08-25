@@ -27,7 +27,12 @@ yuedpao_brain/.obsidian/workspace-mobile.json
 yuedpao_brain/.obsidian/cache/
 yuedpao_brain/.obsidian/backups/
 
-# OS specific files
+# OS specific & IDE files
 .DS_Store
 Thumbs.db
-vscode/
+.vscode/
+.idea/
+
+# Vector Databases & Chroma Storage
+data/chroma/
+*.chroma
