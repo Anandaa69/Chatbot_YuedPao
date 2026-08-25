@@ -19,7 +19,7 @@
   )
   ```
 - **Flex Constraints**:
-  - Enforce `aspectRatio: "1:1"` (square) or `"4:3P"` (landscape) on image components.
+  - Enforce `aspectRatio: "1:1"` (square) or `"4:3"` (landscape) on image components.
   - Enforce `maxLines: 2` on text elements to prevent card height misalignment.
 
 ## 3. Webhook Parsing Rules

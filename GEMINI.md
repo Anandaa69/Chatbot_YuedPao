@@ -10,12 +10,18 @@
 ### 2. Product Search Engine (`app/services/product_service.py` & `yuedpao_chatbot.db`)
 - **Search Pattern:** Hybrid Search combining **BM25 (Exact spec/keyword match)** and **ChromaDB Product Vector (Semantic natural language search)** merged via **Reciprocal Rank Fusion (RRF)**.
 
-### 3. Notebooks & Benchmarks
+### 3. Knowledge & Code Architecture Rules (`.gemini/rules/` & `.agents/rules/`)
+- **Obsidian Vault (`yuedpao_brain/`)**: Master business specs, 4-tier router architecture, NLP domain dictionaries, rubric criteria, and session logs (`wiki/log.md`).
+- **Graphify Code Graph (`graphify-out/`)**: Code call-graphs and module dependency maps (`intent_service`, `product_service`, `tiered_router`, `webhook_controller`, `scraper_service`).
+- **LINE SDK v3 & UI**: `line-bot-sdk >= 3.0.0`, `AsyncMessagingApi`, `aspectRatio: "1:1"` / `"4:3"`, `maxLines: 2`.
+- **Testing & Quality**: Mandatory verification via `python -m pytest` before declaring task completion.
+
+### 4. Notebooks & Benchmarks
 - All NLP intent & edit distance experiments are maintained in `notebooks/intent_rank/`:
   - `02_intent_extraction.ipynb`
   - `intent_editdistance_and_bert.ipynb`
   - `bm25_chromadb.ipynb`
 
-### 4. Encoding Safeguard
+### 5. Encoding Safeguard
 - Windows CLI scripts with Thai text output must include:
   `sys.stdout.reconfigure(encoding='utf-8')`

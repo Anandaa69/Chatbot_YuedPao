@@ -9,6 +9,16 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-25] - Session 4: Unified Rules Synchronization & Obsidian-Graphify Workflow Enforcement
+
+### 🎯 Key Accomplishments
+1. **Rule System Unification & Synchronization**:
+   - Created `[[obsidian_graphify.md]]` defining the dual knowledge-code workflow: Obsidian Vault (`yuedpao_brain/`) for domain requirements & ADRs, Graphify (`graphify-out/`) for execution call-graphs & module dependencies.
+   - Synchronized all 7 system rule files across both `.gemini/rules/` and `.agents/rules/`: `obsidian_graphify.md`, `obsidian_wiki.md`, `graphify.md`, `thai_nlp_chatbot_architecture.md`, `rubric_priority.md`, `line_bot_sdk.md`, and `testing.md`.
+2. **Root Context & Enforcement Verification**:
+   - Updated root `GEMINI.md` to enforce the complete rule set.
+   - Executed `python -m pytest` test suite to verify 100% pass rate.
+
 ---
 
 ## 📅 [2026-08-23] - Session 3: MVC + Services Folder Skeleton Setup & Architecture Documented
