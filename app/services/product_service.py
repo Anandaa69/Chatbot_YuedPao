@@ -142,7 +142,9 @@ class ProductService:
         self.chroma_collection = None
         if chromadb and self.bert_model and self.documents:
             try:
-                self.chroma_client = chromadb.Client()
+                chroma_path = os.path.join(base_dir, "data", "chroma")
+                os.makedirs(chroma_path, exist_ok=True)
+                self.chroma_client = chromadb.PersistentClient(path=chroma_path)
                 collection_name = "yuedpao_products_e5_search"
                 if collection_name in [c.name for c in self.chroma_client.list_collections()]:
                     self.chroma_client.delete_collection(collection_name)

@@ -62,7 +62,9 @@ class IntentService:
         self.chroma_collection = None
         if chromadb and self.bert_model and self.ground_truth:
             try:
-                self.chroma_client = chromadb.Client()
+                chroma_path = os.path.join(self.data_dir, "chroma")
+                os.makedirs(chroma_path, exist_ok=True)
+                self.chroma_client = chromadb.PersistentClient(path=chroma_path)
                 self.chroma_collection = self.chroma_client.get_or_create_collection("intent_few_shot")
                 self._index_fewshot_data()
             except Exception as e:

@@ -106,3 +106,35 @@ Backlink: [[index]]
 3. **Comprehensive Knowledge Base Build**:
    - Created `[[index]]` sitemap.
    - Built `[[project-overview]]`, `[[architecture-tiered-router]]`, `[[nlp-spelling-correction]]`, `[[core-features-rich-menu]]`, `[[product-catalog-scraping]]`, `[[carousel-randomization]]`, `[[rubric-evaluation-checkpoints]]`, and `[[database-schema]]`.
+
+
+## 📅 [2026-08-25] - Session 7: Color-Aware Evaluation, Data Hygiene Cleanup & Production Intent Roadmap ADR
+
+### 🎯 Key Accomplishments
+1. **Color-Aware Evaluation Framework Implementation (`notebooks/intent_rank/rrf_test.ipynb`)**:
+   - Upgraded evaluation framework to validate **`expected_color`** in addition to model keywords.
+   - Re-benchmarked 200 QA scenarios across 5 categories and discovered that 15 out of 24 initial misses were **Wrong Color Matches** (model matched correctly, but color variant differed).
+   - Added **Color Match Boosting (1.30x Multiplier)** in `rrf_hybrid_search` to prioritize user-requested colors.
+
+2. **Data Hygiene Cleanup (100% SQLite DB Cleaning)**:
+   - Discovered and cleaned **142 dirty product category rows** in `yuedpao_chatbot.db` where scraped HTML text (e.g. `ส่งฟรี*\n...`) contaminated SQLite `category` fields.
+   - Cleaned all dirty category strings into standardized categories (`Polo`, `Oversize`, `Babytee`, `Crop`, `Running / Activewear`, `Sleeveless`, `กางเกงยีนส์`, `Pants & Shorts`, `Outerwear & Hoodies`, `Accessories`). Verified 0 dirty rows remain.
+
+3. **Final Production Benchmark Results**:
+   - **Precision@1**: **86.50%** (173/200 exact color & model top-1 hits!)
+   - **Hit Rate@5**: **94.50%** (189/200 top-5 carousel exact hits!)
+   - **MRR@5**: **0.8988**
+   - **Typo Resilience Hit Rate@5**: **100.00%** (40/40)
+   - **P95 Latency**: **44.60 ms**
+
+4. **Production Intent Architecture Roadmap (ADR)**:
+   - Finalized production Intent Architecture based on business reality and DB data availability (avoiding LLM dependency & un-scraped OCR images):
+     - **🔥 Priority 1: `product_search`**: Specific search by spec, color, price limit, model & collection (handles model/collection search natively via 1.25x RRF Intent Boost).
+     - **🎲 Priority 2: `random_recommendation`**: Fair Random Sampling of Top-5 recommendations using `get_fair_top5_recommendations()` excluding session history.
+     - **🏷️ Priority 3: `promotion_discount`**: Promotion carousel displaying `End of year sale` and `ส่งฟรี` items from DB.
+     - **💡 Optional (Low Priority): `fabric_comparison`**: Knowledge card explaining fabric benefits (Ultrasoft, Tailor Cool, Classic Cotton, Ecotech).
+   - Confirmed Size Recommendation and Store Branch Locator are excluded from Scope due to website data being un-scraped image banners.
+
+5. **Code & Test Suite Synchronization**:
+   - Synchronized RRF Hybrid Search Engine (Document Expansion 2.0, Intent Boost, Color Boost, Smart Price Fallback) into production service file `app/services/product_service.py`.
+   - Verified 100% pass rate across automated test suite (`python -m pytest`: 3/3 passed).
