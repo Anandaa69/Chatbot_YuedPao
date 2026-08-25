@@ -9,6 +9,25 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-25] - Session 6: 200 QA Expansion, Enhanced Diagnostic Benchmarking & Price Smart Fallback ADR
+
+### 🎯 Key Accomplishments
+1. **QA Benchmark Expansion (100 -> 200 Scenarios)**:
+   - Created `notebooks/intent_rank/qa_benchmark_200.json` expanding dataset to 200 QA scenarios across 5 categories (40 per category): Exact Model & Color, Natural Language Fabric Touch, Price Boundary, Typo Resilience (with realistic Thai typing errors), Target Persona.
+
+2. **Diagnostic Evaluation Report Overhaul (`notebooks/intent_rank/rrf_test.ipynb`)**:
+   - Added `Ground Truth` & `Max Price` columns for complete visibility during debugging.
+   - Added candidate display showing exact matched item name and rank (`Matched / Top-1 Item (Rank #X)`).
+   - Added `RRF Score` and `Vector Cosine Similarity Score` to quantify retrieval confidence.
+   - Introduced `Precision@1` (Top-1 Accuracy: **82.50%**) alongside `Hit Rate@5` (**90.00%**), `MRR@5` (**0.8600**), and P95 Latency (**53.22 ms**).
+   - Implemented Automated Error Categorization: Categorized all 20 misses into 17 Semantic Ranking Misalignments (> Top 5) and 3 Price Exceeded cases.
+
+3. **Price Boundary & Smart Fallback Strategy (ADR)**:
+   - Investigated 3 Price Boundary misses (`QA-58` Jeans $\le 400\text{฿}$, `QA-59` Babytee $\le 150\text{฿}$, `QA-145` Tailor Cool $\le 380\text{฿}$). Confirmed Hard Filter (`price <= max_price`) correctly executed, but catalog minimum prices are 790฿, 190฿, 490฿.
+   - Formulated **Smart Fallback Strategy**: When hard price filter yields 0 items, system automatically relaxes price constraint to fetch closest matching catalog items and responds with an informative, user-friendly recommendation message on LINE UI.
+
+---
+
 ## 📅 [2026-08-25] - Session 5: RRF Hybrid Search Optimization, 100 QA Benchmark & Document Expansion
 
 ### 🎯 Key Accomplishments
