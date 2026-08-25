@@ -332,8 +332,8 @@ class YuedpaoScraperService:
                 if p_fallback:
                     price_text = p_fallback.get_text(strip=True)
             
-            price = re.sub(r"[^\d]", "", price_text)
-            price = int(price) if price else 0
+            price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
+            price = min(price_nums) if price_nums else 0
             
             # 3. Description (USP)
             desc_text = ""
@@ -438,8 +438,8 @@ class YuedpaoScraperService:
                 if p_fallback:
                     price_text = p_fallback.get_text(strip=True)
             
-            price = re.sub(r"[^\d]", "", price_text)
-            price = int(price) if price else 0
+            price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
+            price = min(price_nums) if price_nums else 0
             
             image_url = ""
             img_div = item.find("div", style=lambda x: x and "background-image" in x)
