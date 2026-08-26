@@ -25,3 +25,6 @@
 ### 5. Encoding Safeguard
 - Windows CLI scripts with Thai text output must include:
   `sys.stdout.reconfigure(encoding='utf-8')`
+
+### 6. Mandatory Obsidian Brain Logging Rule
+- **Rule:** At the end of every work session or major architectural decision (ADR), the AI agent MUST automatically record a structured progress log entry to `yuedpao_brain/wiki/log.md`.

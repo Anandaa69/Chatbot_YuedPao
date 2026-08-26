@@ -46,3 +46,8 @@ description: Guidelines for Thai NLP Intent Classification and Hybrid Product Se
 
 ## 7. QA Benchmark Standard
 * **Rule:** The canonical benchmark dataset for RRF search evaluation is `notebooks/intent_rank/qa_benchmark_100.json` (100 scenarios across 5 categories: Exact Model & Color, Natural Language Fabric Touch, Price Boundary, Typo Resilience, Target Persona).
+
+## 8. Mandatory Obsidian Brain Logging Rule
+* **Rule:** At the end of every work session or major architectural decision (ADR), the AI agent MUST automatically append a structured progress log entry to `yuedpao_brain/wiki/log.md`.
+* **Rationale:** Preserves project context, system decisions, benchmark performance metrics, and database schema updates across agent conversations.
+

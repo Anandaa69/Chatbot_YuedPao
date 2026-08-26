@@ -74,7 +74,8 @@ class IntentService:
         self.INTENT_PASSAGES = {
             "product_search": "passage: ซื้อเสื้อ หาเสื้อ ขอดูเสื้อ สั่งซื้อเสื้อผ้า เสื้อยืด กางเกง เสื้อโปโล เสื้อเชิ้ต ราคาสินค้า สี ไซส์ ทรงเสื้อ มีงบ มีราคา ไม่เกิน",
             "size_recommendation": "passage: สอบถามไซส์ แนะนำไซส์เสื้อ ขนาดเสื้อ รอบอก สัดส่วนความสูงและน้ำหนัก ไซส์ไหนดี ใส่ไซส์อะไร เหมาะกับไซส์อะไร",
-            "fabric_comparison": "passage: สอบถามเนื้อผ้า เปรียบเทียบคุณสมบัติผ้า ผ้าต่างกันยังไง ซักแล้วยับไหม ผ้านุ่ม ระบายอากาศ ดีกว่ายังไง คุณสมบัติของผ้า"
+            "fabric_comparison": "passage: สอบถามเนื้อผ้า เปรียบเทียบคุณสมบัติผ้า ผ้าต่างกันยังไง ซักแล้วยับไหม ผ้านุ่ม ระบายอากาศ ดีกว่ายังไง คุณสมบัติของผ้า",
+            "promotion_discount": "passage: โปรโมชัน ดีลพิเศษ ประจำวัน ประจำเดือน แฟลชเซล ส่วนลด คูปอง ลดราคา วันนี้ เดือนนี้ ส่งฟรี"
         }
         self.intent_classes = list(self.INTENT_PASSAGES.keys())
         self.passage_embeddings = None
@@ -110,9 +111,16 @@ class IntentService:
     def _index_fewshot_data(self):
         if not self.chroma_collection or not self.ground_truth:
             return
-        if self.chroma_collection.count() > 0:
+        if self.chroma_collection.count() == len(self.ground_truth):
             return
             
+        # Re-index if ground truth dataset size changed
+        try:
+            self.chroma_client.delete_collection("intent_few_shot")
+        except Exception:
+            pass
+        self.chroma_collection = self.chroma_client.create_collection("intent_few_shot")
+
         docs = [f"query: {item['query']}" for item in self.ground_truth]
         embeddings = self.bert_model.encode(docs, convert_to_tensor=False).tolist()
         ids = [f"gt_{i}" for i in range(len(self.ground_truth))]
@@ -210,7 +218,18 @@ class IntentService:
                 "latency_ms": total_time
             }
             
-        product_triggers = ["ไม่เกิน", "งบ", "บาท", "ขอดู", "อยากได้", "หาเสื้อ", "มีเสื้อ", "ราคาประมาณ", "โปรโมชัน", "ลดราคา", "สักตัว"]
+        promo_triggers = ["โปรโมชัน", "โปรโมชั่น", "ดีลพิเศษ", "แฟลชเซล", "flash sale", "ส่วนลด", "คูปอง", "ประจำวัน", "ประจำเดือน", "ลดราคา", "ส่งฟรี", "ดีล", "โปร"]
+        if any(pt in raw_lower or pt in corrected_query for pt in promo_triggers) and not re.search(r'(?:ไม่เกิน|งบ|\d+\s*บาท)', raw_lower):
+            total_time = (time.perf_counter() - start_t) * 1000.0
+            return {
+                "intent": "promotion_discount",
+                "tier_used": "Tier 1: Priority Rule (Promotion)",
+                "corrected_query": corrected_query,
+                "confidence": 1.0,
+                "latency_ms": total_time
+            }
+
+        product_triggers = ["ไม่เกิน", "งบ", "บาท", "ขอดู", "อยากได้", "หาเสื้อ", "มีเสื้อ", "ราคาประมาณ", "สักตัว"]
         if any(pt in raw_lower for pt in product_triggers):
             total_time = (time.perf_counter() - start_t) * 1000.0
             return {

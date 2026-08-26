@@ -235,12 +235,35 @@
   "product_styles": [
     "Unisex",
     "Oversize",
-    "Crop"
+    "Crop",
+    "ประจำวัน",
+    "ประจำเดือน",
+    "โปรโมชัน",
+    "โปรโมชั่น",
+    "ลดราคา",
+    "ส่วนลด",
+    "คูปอง",
+    "แฟลชเซล",
+    "ดีลพิเศษ",
+    "วันนี้",
+    "เดือนนี้",
+    "โปร"
   ],
   "fabric_technologies": [
     "Classic Cotton",
     "Ultrasoft",
-    "Tailor Cool"
+    "Tailor Cool",
+    "ประจำวัน",
+    "ประจำเดือน",
+    "โปรโมชัน",
+    "โปรโมชั่น",
+    "ลดราคา",
+    "ส่วนลด",
+    "คูปอง",
+    "แฟลชเซล",
+    "ดีลพิเศษ",
+    "วันนี้",
+    "เดือนนี้"
   ],
   "apparel_types": [
     "RUNNING ROULETTE",
@@ -368,6 +391,18 @@
     "End of year sale 20%",
     "ส่งฟรี*\nสินค้าหมด\nOversizeCollab Wear Their Voice _Good and bad\n\n฿ 392",
     "ส่งฟรี*\nOversizeCollab Wear Their Voice_Turtle's way\n\n฿ 392",
-    "ส่งฟรี*\nOversizeCollab Wear Their Voice _ Free bird\n\n฿ 392"
+    "ส่งฟรี*\nOversizeCollab Wear Their Voice _ Free bird\n\n฿ 392",
+    "ประจำวัน",
+    "ประจำเดือน",
+    "โปรโมชัน",
+    "โปรโมชั่น",
+    "ลดราคา",
+    "ส่วนลด",
+    "คูปอง",
+    "แฟลชเซล",
+    "ดีลพิเศษ",
+    "วันนี้",
+    "เดือนนี้",
+    "โปร"
   ]
 }

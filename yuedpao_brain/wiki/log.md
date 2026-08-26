@@ -138,3 +138,40 @@ Backlink: [[index]]
 5. **Code & Test Suite Synchronization**:
    - Synchronized RRF Hybrid Search Engine (Document Expansion 2.0, Intent Boost, Color Boost, Smart Price Fallback) into production service file `app/services/product_service.py`.
    - Verified 100% pass rate across automated test suite (`python -m pytest`: 3/3 passed).
+
+
+### 💡 ADR: Tier 1 Rule-Based & Edit-Distance Routing for Promotion Intent (`promotion_discount`)
+- **Decision**: Implemented a **Tier 1 Priority Rule + Tier 0 Edit-Distance** approach for the `promotion_discount` intent to achieve **< 5 ms sub-second latency** and 100% deterministic output.
+- **Routing Rules**:
+  1. **Daily Deals Trigger (`daily_deal`)**: Keywords `ประจำวัน`, `วันนี้`, `flash sale`, `แฟลชเซล` (with Edit-Distance typo tolerance e.g. `ดีลปะจำวัน`) $\rightarrow$ Query SQLite `promotions` table where `deal_type = 'daily_deal'` and return Daily Deals Carousel Card immediately.
+  2. **Monthly Deals Trigger (`monthly_deal`)**: Keywords `ประจำเดือน`, `เดือนนี้`, `ดีลเดือน` (with Edit-Distance typo tolerance e.g. `ดีลปะจำเดือน`) $\rightarrow$ Query SQLite `promotions` table where `deal_type = 'monthly_deal'` and return Monthly Deals Carousel Card immediately.
+  3. **Natural Language / Specific Spec Search**: If user asks open-ended or spec-specific promo queries (e.g. *"มีกางเกงยีนส์ลดราคาไหม"*), fall back to `PromotionService.search_promotions()` via RRF Hybrid Search (`yuedpao_promotions_e5` collection).
+
+
+---
+
+## 📌 Session 8: Promotion Scraper, Persistent ChromaDB & Typo Benchmark (2026-08-26)
+
+### 1. Targeted Deep Promotion Scraper (`notebooks/03_promotion_scraper.ipynb`)
+- Built deep detail scraper for Home Page `/countdown/...` links (Daily Deals & Monthly Deals).
+- Navigated into individual product pages (`/physical/...`) to extract rich metadata: `description`, `colors`, `sizes_json`, `size_chart_url`, and `gallery_images_json`.
+- Populated 13 rich promotional items into SQLite `promotions` table in `yuedpao_chatbot.db`.
+
+### 2. Single Source of Truth DB Cleanup
+- Deleted duplicate database `notebooks/yuedpao_chatbot.db` (30 KB).
+- Re-routed all notebooks to use root master database `yuedpao_chatbot.db` (`../yuedpao_chatbot.db`).
+
+### 3. Persistent ChromaDB Architecture (`data/chroma/`)
+- Updated `ProductService` and `IntentService` to use `chromadb.PersistentClient(path="data/chroma")`.
+- Untracked `data/chroma/` and `.vscode/` from Git index and added wildcard rules to `.gitignore`.
+- Created persistent collections: `yuedpao_products_e5_search` (695 items), `yuedpao_promotions_e5` (13 items), and `intent_few_shot` (136 items).
+
+### 4. Promotion Service Engine (`app/services/promotion_service.py`)
+- Created `PromotionService` engine handling RRF Hybrid Search for promotion items and fast incremental indexing (< 0.5s).
+
+### 5. Promotion Typo Resilience Benchmark Notebook (`notebooks/intent_rank/test_promotion_typo_intent.ipynb`)
+- Created dedicated evaluation notebook for promotion queries with Thai typos.
+- Enriched `domain_vocab.json` with promotion vocabulary (`ประจำวัน`, `ประจำเดือน`, `โปรโมชัน`, `ส่วนลด`, `คูปอง`, `แฟลชเซล`, `ดีลพิเศษ`).
+- Added Tier 1 Promotion Priority Rule in `intent_service.py` and auto-sync guard for `intent_few_shot` collection.
+- **Result:** Achieved **93.33% Accuracy** (14/15) and **< 1.5 ms Latency** on Thai promotion typo queries.
+- **Verification:** Verified 100% pass rate across automated test suite (`python -m pytest`: 3/3 passed).
