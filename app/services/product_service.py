@@ -59,7 +59,7 @@ STYLE_SYNONYMS = {
 PERSONA_SYNONYMS = {
     "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง สาวอวบ ซ่อนหน้าท้อง ซ่อนพุง คนท้อง",
     "Kid": "เด็ก เสื้อเด็ก ของขวัญเด็ก เด็กอนุบาล ลายน่ารัก kidซ คิดส์ คิด",
-    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่",
+    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ คอปก เสื้อคอปก เสื้อมีปก ปก ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่",
     "Crop": "เสื้อครอป น่ารัก สาวๆ เที่ยวทะเล คอกลม ทรงสั้นเอว เอวสูง ตัวเล็ก",
     "Running": "ใส่วิ่ง ออกกำลังกาย ระบายอากาศ ระบายความร้อน อากาศไทย ไม่ร้อน รันนิ่ง สปอร์ต เดินป่า ไม่หมองจากเหงื่อ ไม่มีกลิ่นเหงื่อ",
     "Tie Dye": "มัดย้อม ไทด์ดาย ไทน์ดาย ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม ถ่ายรูป content อาร์ต สตรีท",
@@ -98,7 +98,7 @@ COLOR_KEYWORDS_MAP = {
 }
 
 INTENT_MAP_KEYWORDS = {
-    "polo": ["โปโล", "polo", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่"],
+    "polo": ["โปโล", "polo", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่", "คอปก", "เสื้อคอปก", "ปก", "เสื้อมีปก"],
     "babytee": ["เบบี้ที", "babytee", "baby tee", "เสื้อตัวเล็ก"],
     "ultrasoft": ["ผ้านุ่ม", "ไม่ยับ", "ไม่ต้องรีด", "อัลตราซอฟ", "อลตราซอฟ", "อัลตราซอฟท์", "โคตรนุ่ม", "โคตนุ่ม", "เดินห้าง", "สบายตา"],
     "classic cotton": ["ฝ้าย", "cotton", "ผิวแพ้ง่าย", "ไม่คัน", "เนื้อผ้าแน่น", "ทรงตรง", "ไม่ยืดหลังซัก"],
@@ -146,13 +146,20 @@ class ProductService:
                 os.makedirs(chroma_path, exist_ok=True)
                 self.chroma_client = chromadb.PersistentClient(path=chroma_path)
                 collection_name = "yuedpao_products_e5_search"
-                if collection_name in [c.name for c in self.chroma_client.list_collections()]:
-                    self.chroma_client.delete_collection(collection_name)
-                self.chroma_collection = self.chroma_client.create_collection(
+                self.chroma_collection = self.chroma_client.get_or_create_collection(
                     name=collection_name, 
                     metadata={"hnsw:space": "cosine"}
                 )
-                self._index_chromadb()
+                if self.chroma_collection.count() != len(self.documents):
+                    try:
+                        self.chroma_client.delete_collection(collection_name)
+                    except Exception:
+                        pass
+                    self.chroma_collection = self.chroma_client.create_collection(
+                        name=collection_name, 
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                    self._index_chromadb()
             except Exception as e:
                 print(f"⚠️ Warning: Could not initialize ChromaDB in ProductService: {e}")
 
@@ -262,6 +269,8 @@ class ProductService:
             if "mist green" in color_val.lower() or "misgreen" in color_val.lower():
                 color_val = color_val + ",Mint"
 
+            gender_val = self._classify_product_gender(p["name"], cat_val, p["style"], p["description"])
+
             self.metadatas.append({
                 "product_id": p["product_id"],
                 "name": p["name"],
@@ -271,8 +280,31 @@ class ProductService:
                 "price": p["price"],
                 "image_url": p["image_url"],
                 "product_url": p["product_url"],
-                "colors": color_val
+                "colors": color_val,
+                "gender": gender_val
             })
+
+    def _classify_product_gender(self, name: str, category: str, style: str, description: str) -> str:
+        text = f"{name} {category} {style} {description}".lower()
+        female_keywords = ["woman", "women", "crop", "babytee", "คุณผู้หญิง", "ผู้หญิง", "สำหรับผู้หญิง", "สาวๆ", "เอวสูง"]
+        
+        is_female = any(kw in text for kw in female_keywords)
+        
+        is_male = False
+        for kw in ["คุณผู้ชาย", "ผู้ชาย", "สำหรับผู้ชาย"]:
+            if kw in text:
+                is_male = True
+                break
+        if not is_male:
+            if re.search(r'\bmen\b|\bman\b', text):
+                is_male = True
+        
+        if is_female and not is_male:
+            return "female"
+        elif is_male and not is_female:
+            return "male"
+        else:
+            return "unisex"
 
     def _clean_text(self, text: str) -> str:
         if not text:
@@ -311,7 +343,7 @@ class ProductService:
 
     def _extract_max_price(self, query: str) -> Optional[int]:
         query_lower = query.lower()
-        match = re.search(r'(?:ไม่เกิน|งบ|ราคาประมาณ|งบประมาณ|ราคา)\s*(\d+)', query_lower)
+        match = re.search(r'(?:ไม่เกิน|งบ|ราคา|ต่ำกว่า|น้อยกว่า|งบประมาณ|ราคาประมาณ)\s*(?:ประมาณ|ไม่เกิน|ต่ำกว่า|น้อยกว่า)?\s*(\d+)', query_lower)
         if match:
             return int(match.group(1))
         match2 = re.search(r'(\d+)\s*(?:บาท|บ\.)', query_lower)
@@ -335,11 +367,25 @@ class ProductService:
                 detected_cols.append(col_key)
         return detected_cols
 
+    def _detect_query_gender(self, query: str) -> Optional[str]:
+        q_lower = query.lower()
+        female_query_kws = ["ผู้หญิง", "หญิง", "สำหรับผู้หญิง", "คุณผู้หญิง", "women", "woman", "สาว"]
+        male_query_kws = ["ผู้ชาย", "ชาย", "สำหรับผู้ชาย", "คุณผู้ชาย", "men", "man"]
+        
+        has_female = any(kw in q_lower for kw in female_query_kws)
+        has_male = any(kw in q_lower for kw in male_query_kws)
+        
+        if has_male and not has_female:
+            return "male"
+        if has_female and not has_male:
+            return "female"
+        return None
+
     def search_products(self, raw_query: str, top_k: int = 15, k_constant: int = 60) -> List[Dict[str, Any]]:
         """
         Main entry point for product retrieval. Combines BM25 and Vector DB search 
         using Reciprocal Rank Fusion (RRF), with integrated Intent Boost, Color Match Boost,
-        and Smart Price Fallback.
+        Gender Filtering, and Smart Price Fallback.
         """
         if not self.documents:
             return []
@@ -347,6 +393,7 @@ class ProductService:
         max_price = self._extract_max_price(raw_query)
         detected_intents = self._detect_query_intents(raw_query)
         requested_colors = self._detect_query_colors(raw_query)
+        requested_gender = self._detect_query_gender(raw_query)
 
         # 1. BM25 ranks
         bm25_scores = [0.0] * len(self.documents)
@@ -358,9 +405,24 @@ class ProductService:
         # 2. Vector ranks
         vector_rank_map = {}
         if self.chroma_collection and self.bert_model:
-            query_emb = self.bert_model.encode(f"query: {raw_query}", convert_to_tensor=False).tolist()
-            chroma_results = self.chroma_collection.query(query_embeddings=[query_emb], n_results=len(self.documents))
-            vector_rank_map = {doc_id: rank + 1 for rank, doc_id in enumerate(chroma_results["ids"][0])}
+            try:
+                query_emb = self.bert_model.encode(f"query: {raw_query}", convert_to_tensor=False).tolist()
+                chroma_results = self.chroma_collection.query(query_embeddings=[query_emb], n_results=len(self.documents))
+                vector_rank_map = {doc_id: rank + 1 for rank, doc_id in enumerate(chroma_results["ids"][0])}
+            except Exception as e:
+                print(f"⚠️ ChromaDB Query Warning: {e}. Re-initializing collection...")
+                try:
+                    collection_name = "yuedpao_products_e5_search"
+                    self.chroma_collection = self.chroma_client.get_or_create_collection(
+                        name=collection_name, 
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                    if self.chroma_collection.count() != len(self.documents):
+                        self._index_chromadb()
+                    chroma_results = self.chroma_collection.query(query_embeddings=[query_emb], n_results=len(self.documents))
+                    vector_rank_map = {doc_id: rank + 1 for rank, doc_id in enumerate(chroma_results["ids"][0])}
+                except Exception as retry_e:
+                    print(f"⚠️ ChromaDB Recovery Failed: {retry_e}")
 
         # 3. RRF Fusion Helper
         def compute_rrf(apply_price_filter: bool):
@@ -373,16 +435,32 @@ class ProductService:
                 if apply_price_filter and max_price is not None and price > max_price:
                     continue
 
+                item_gender = meta.get("gender", "unisex")
+                if requested_gender == "male" and item_gender == "female":
+                    continue
+                elif requested_gender == "female" and item_gender == "male":
+                    continue
+
                 r_bm25 = bm25_rank + 1
                 r_vec = vector_rank_map.get(doc_id, 9999)
                 base_score = (1.0 / (k_constant + r_bm25)) + (1.0 / (k_constant + r_vec))
 
                 item_haystack = f"{meta['name']} {meta['category']} {meta['fabric']} {meta['style']} {self.documents[idx]}".lower()
 
-                # Intent Boost (1.25x)
+                # Strict Intent / Category Filter (e.g. polo, crop, jeans, babytee)
+                if "polo" in detected_intents and not ("polo" in item_haystack or "โปโล" in item_haystack or "คอปก" in item_haystack or "เสื้อโปโล" in item_haystack or "หมวดหมู่: polo" in item_haystack):
+                    continue
+                if "crop" in detected_intents and not ("crop" in item_haystack or "ครอป" in item_haystack):
+                    continue
+                if "babytee" in detected_intents and not ("babytee" in item_haystack or "เบบี้ที" in item_haystack):
+                    continue
+                if "jeans" in detected_intents and not ("jeans" in item_haystack or "ยีนส์" in item_haystack or "เดนิม" in item_haystack):
+                    continue
+
+                # Intent Boost (1.60x for polo, 1.25x for others)
                 intent_boost = 1.0
                 if detected_intents and any(tag in item_haystack for tag in detected_intents):
-                    intent_boost = 1.25
+                    intent_boost = 1.60 if "polo" in detected_intents and ("polo" in item_haystack or "โปโล" in item_haystack or "คอปก" in item_haystack) else 1.25
 
                 # Color Match Boost (1.30x)
                 color_boost = 1.0

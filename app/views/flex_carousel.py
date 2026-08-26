@@ -30,7 +30,7 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
             # Category Badge
             {
                 "type": "text",
-                "text": f"🏷️ {category.upper()}",
+                "text": f"{category.upper()}",
                 "weight": "bold",
                 "color": "#e63946",
                 "size": "xs"
@@ -48,7 +48,7 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
             # Color Information
             {
                 "type": "text",
-                "text": f"🎨 สี: {color_str}" if color_str else "🎨 หลากหลายสี",
+                "text": f"สี: {color_str}" if color_str else "หลากหลายสี",
                 "size": "xs",
                 "color": "#666666",
                 "margin": "xs"
@@ -107,7 +107,7 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
                         "type": "button",
                         "action": {
                             "type": "uri",
-                            "label": "🛒 ดูรายละเอียด",
+                            "label": "ดูรายละเอียด",
                             "uri": product_url
                         },
                         "style": "primary",
@@ -132,7 +132,7 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
                 "contents": [
                     {
                         "type": "text",
-                        "text": "⏩ ดูเพิ่มเติม",
+                        "text": "ดูเพิ่มเติม",
                         "weight": "bold",
                         "size": "md",
                         "color": "#e63946",
@@ -159,7 +159,7 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
                         "type": "button",
                         "action": {
                             "type": "uri",
-                            "label": "🌐 ดูทั้งหมดบนเว็บ",
+                            "label": "ดูทั้งหมดบนเว็บ",
                             "uri": "https://www.yuedpao.com"
                         },
                         "style": "secondary",
@@ -180,7 +180,7 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
 def build_coupon_flex_carousel(coupons: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Build LINE Flex Message Carousel JSON for Coupon Tickets.
-    Includes '📋 คัดลอกโค้ด' (Clipboard Action button).
+    Includes 'คัดลอกโค้ด' (Clipboard Action button).
     """
     bubbles = []
     
@@ -202,7 +202,7 @@ def build_coupon_flex_carousel(coupons: List[Dict[str, Any]]) -> Dict[str, Any]:
                 "contents": [
                     {
                         "type": "text",
-                        "text": "🎫 คูปองส่วนลดพิเศษ",
+                        "text": "คูปองส่วนลดพิเศษ",
                         "weight": "bold",
                         "color": "#ffffff",
                         "size": "xs"
@@ -233,14 +233,14 @@ def build_coupon_flex_carousel(coupons: List[Dict[str, Any]]) -> Dict[str, Any]:
                     },
                     {
                         "type": "text",
-                        "text": f"📌 {min_spend_str}",
+                        "text": f"{min_spend_str}",
                         "size": "xs",
                         "color": "#457b9d",
                         "margin": "xs"
                     },
                     {
                         "type": "text",
-                        "text": f"⏰ {duration}",
+                        "text": f"{duration}",
                         "size": "xs",
                         "color": "#666666",
                         "margin": "xs",
@@ -248,7 +248,7 @@ def build_coupon_flex_carousel(coupons: List[Dict[str, Any]]) -> Dict[str, Any]:
                     },
                     {
                         "type": "text",
-                        "text": f"📝 {condition}",
+                        "text": f"{condition}",
                         "size": "xs",
                         "color": "#999999",
                         "margin": "xs",
@@ -266,7 +266,7 @@ def build_coupon_flex_carousel(coupons: List[Dict[str, Any]]) -> Dict[str, Any]:
                         "type": "button",
                         "action": {
                             "type": "clipboard",
-                            "label": "📋 คัดลอกโค้ด",
+                            "label": "คัดลอกโค้ด",
                             "clipboardText": code
                         },
                         "style": "secondary",

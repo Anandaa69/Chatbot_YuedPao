@@ -14,7 +14,7 @@ def build_quick_reply_items(intent: str = "") -> Dict[str, Any]:
             "type": "action",
             "action": {
                 "type": "message",
-                "label": "🎲 สุ่มแนะนำสินค้า",
+                "label": "สุ่มแนะนำสินค้า",
                 "text": "สุ่มแนะนำสินค้า"
             }
         },
@@ -22,7 +22,7 @@ def build_quick_reply_items(intent: str = "") -> Dict[str, Any]:
             "type": "action",
             "action": {
                 "type": "message",
-                "label": "🏷️ ดูคูปองส่วนลด",
+                "label": "ดูคูปองส่วนลด",
                 "text": "มีโปรโมชันคูปองอะไรบ้าง"
             }
         },
@@ -30,7 +30,7 @@ def build_quick_reply_items(intent: str = "") -> Dict[str, Any]:
             "type": "action",
             "action": {
                 "type": "message",
-                "label": "👕 เปรียบเทียบผ้า",
+                "label": "เปรียบเทียบผ้า",
                 "text": "เปรียบเทียบคุณสมบัติผ้า"
             }
         },
@@ -38,7 +38,7 @@ def build_quick_reply_items(intent: str = "") -> Dict[str, Any]:
             "type": "action",
             "action": {
                 "type": "message",
-                "label": "📏 ดูตารางไซส์",
+                "label": "ดูตารางไซส์",
                 "text": "ขอตารางไซส์หน่อย"
             }
         }

@@ -204,30 +204,35 @@ class PromotionService:
                 self.chroma_client = chromadb.PersistentClient(path=self.chroma_path)
                 collection_name = "yuedpao_promotions_e5"
                 
-                # Reset collection for fast atomic refresh
-                existing_cols = self.chroma_client.list_collections()
-                existing_names = [getattr(c, "name", str(c)) for c in existing_cols]
-                if collection_name in existing_names:
-                    self.chroma_client.delete_collection(collection_name)
-                    
-                self.chroma_collection = self.chroma_client.create_collection(
+                self.chroma_collection = self.chroma_client.get_or_create_collection(
                     name=collection_name,
                     metadata={"hnsw:space": "cosine"}
                 )
                 
-                embeddings = self.bert_model.encode(
-                    self.documents, 
-                    convert_to_tensor=False, 
-                    batch_size=32, 
-                    show_progress_bar=False
-                ).tolist()
-                
-                self.chroma_collection.add(
-                    ids=self.doc_ids,
-                    documents=self.documents,
-                    embeddings=embeddings,
-                    metadatas=self.metadatas
-                )
+                if self.chroma_collection.count() != len(self.documents):
+                    try:
+                        self.chroma_client.delete_collection(collection_name)
+                    except Exception:
+                        pass
+                        
+                    self.chroma_collection = self.chroma_client.create_collection(
+                        name=collection_name,
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                    
+                    embeddings = self.bert_model.encode(
+                        self.documents, 
+                        convert_to_tensor=False, 
+                        batch_size=32, 
+                        show_progress_bar=False
+                    ).tolist()
+                    
+                    self.chroma_collection.add(
+                        ids=self.doc_ids,
+                        documents=self.documents,
+                        embeddings=embeddings,
+                        metadatas=self.metadatas
+                    )
             except Exception as e:
                 print(f"⚠️ Warning: Could not initialize ChromaDB in PromotionService: {e}")
 
@@ -264,9 +269,24 @@ class PromotionService:
         # 2. Vector score
         vector_rank_map = {}
         if self.chroma_collection and self.bert_model:
-            query_emb = self.bert_model.encode(f"query: {raw_query}", convert_to_tensor=False).tolist()
-            chroma_results = self.chroma_collection.query(query_embeddings=[query_emb], n_results=len(self.documents))
-            vector_rank_map = {doc_id: rank + 1 for rank, doc_id in enumerate(chroma_results["ids"][0])}
+            try:
+                query_emb = self.bert_model.encode(f"query: {raw_query}", convert_to_tensor=False).tolist()
+                chroma_results = self.chroma_collection.query(query_embeddings=[query_emb], n_results=len(self.documents))
+                vector_rank_map = {doc_id: rank + 1 for rank, doc_id in enumerate(chroma_results["ids"][0])}
+            except Exception as e:
+                print(f"⚠️ ChromaDB Promotion Query Warning: {e}. Re-initializing collection...")
+                try:
+                    collection_name = "yuedpao_promotions_e5"
+                    self.chroma_collection = self.chroma_client.get_or_create_collection(
+                        name=collection_name, 
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                    if self.chroma_collection.count() != len(self.documents):
+                        self.reload_and_index()
+                    chroma_results = self.chroma_collection.query(query_embeddings=[query_emb], n_results=len(self.documents))
+                    vector_rank_map = {doc_id: rank + 1 for rank, doc_id in enumerate(chroma_results["ids"][0])}
+                except Exception as retry_e:
+                    print(f"⚠️ ChromaDB Promotion Recovery Failed: {retry_e}")
 
         # 3. RRF Fusion
         scores = {}

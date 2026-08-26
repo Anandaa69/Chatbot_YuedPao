@@ -439,17 +439,22 @@ Backlink: [[index]]
 
 ---
 
-### 📌 Session 18: Promotion Scraper Image Extraction Enhancement & Live DB Update
-1. **Scraper Notebook Enhancement ([03_promotion_scraper.ipynb](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/notebooks/03_promotion_scraper.ipynb))**:
-   - Updated product image extraction logic in cell 4 (`scrape_deep_product_detail`) and cell 5 (`scrape_deal_products_with_details`) to match [run_scraper.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/run_scraper.py):
-     - Extracted high-res PNG/JPEG images from `background-image` CSS styles and `<picture>/<img>` srcset attributes while filtering `.svg` badges.
-     - Added automatic fallback to SQLite `products` catalog table if promotion images are missing.
-2. **Database & Indexing Update**:
-   - Re-scraped 21 live promotion items into SQLite `promotions` table (`yuedpao_chatbot.db`).
-   - 100% of items now have valid PNG/JPEG cover image URLs (`https://mp-static.yuedpao.com/physical/cover/...`).
-   - Re-classified IDs 1-9 as `daily_deal` (Signature Oversize series) and IDs 10-21 as `monthly_deal` (Y Collection Polo & Cargo series).
+### 📌 Session 23: DB Price Correction & Bare Keyword Substring Fix ('ปก' vs 'ปกป้อง')
+1. **SQLite Database Price Correction (`yuedpao_chatbot.db`)**:
+   - Fixed corrupted scraped price for `Y Collection Polo 2025_Black` (`product_id = 24jyjza9w0g5etp2a4j2`) from `2925` Baht to `292.5` Baht.
+2. **Strict Category Intent Filter & Substring Bug Fix**:
+   - **Root Cause Identified**: The bare keyword `'ปก'` matched inside `'ปกป้อง'` (protect) in description text of round-neck t-shirts (`Ultrasoft Unisex`), causing t-shirts to bypass polo intent filtering.
+   - **Fix**: Replaced bare `'ปก'` check with explicit keywords `polo`, `โปโล`, `คอปก`, `เสื้อโปโล`, `หมวดหมู่: polo` in `compute_rrf()` inside [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py).
 3. **Verification**:
-   - Verified live deal queries (`ขอดีลของวันนี้`, `ขอดีลประจำเดือนนี้`) with latency < 1 ms and 100% clean PNG cover image rendering.
+   - Tested query `ขอเสื้อผู้ชายคอปก ราคาต่ำกว่า 300 สีดำ`:
+     - **Item 1:** `Y Collection Polo 2025_Black` | Price: ฿292.5 (Black Polo shirt!)
+     - **Item 2:** `Polo LongSleeve Striped_Rosewood` | Price: ฿290 (Polo shirt!)
+     - **Round-neck T-shirts:** 100% eliminated (0 non-polo items rendered).
+
+
+
+
+
 
 
 

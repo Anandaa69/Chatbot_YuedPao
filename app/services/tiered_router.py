@@ -54,7 +54,7 @@ class TieredRouter:
         if intent == "product_search":
             products = self.product_service.search_products(raw_query, top_k=5)
             if products:
-                reply_text = f"✨ พบสินค้าเสื้อยืดแบรนด์ยืดเปล่า {len(products)} รายการที่ตรงกับความต้องการของคุณครับ:"
+                reply_text = f"พบสินค้าเสื้อยืดแบรนด์ยืดเปล่า {len(products)} รายการที่ตรงกับความต้องการของคุณครับ:"
                 flex_payload = build_product_flex_carousel(products)
             else:
                 reply_text = "ขออภัยครับ ไม่พบสินค้าตรงกับเงื่อนไข ลองปรับงบประมาณหรือค้นหาด้วยสีอื่นดูนะครับ"
@@ -62,7 +62,7 @@ class TieredRouter:
         elif intent == "coupon_ticket":
             coupons = self.promotion_service.get_all_coupons() or self.get_coupons_from_db()
             if coupons:
-                reply_text = "🏷️ รวมคูปองส่วนลดและโค้ดส่วนลดพิเศษล่าสุดจาก YuedPao สามารถกดปุ่มคัดลอกโค้ดไปใช้ได้เลยครับ:"
+                reply_text = "รวมคูปองส่วนลดและโค้ดส่วนลดพิเศษล่าสุดจาก YuedPao สามารถกดปุ่มคัดลอกโค้ดไปใช้ได้เลยครับ:"
                 flex_payload = build_coupon_flex_carousel(coupons)
             else:
                 reply_text = "ขณะนี้ยังไม่มีคูปองส่วนลดเพิ่มเติม ลองติดตามกิจกรรมใหม่ๆ บนหน้าเว็บ YuedPao ได้เลยครับ"
@@ -74,14 +74,14 @@ class TieredRouter:
             # Direct Rule-Based Query Routing
             if any(k in q_lower or k in corr_lower for k in ["ประจำวัน", "วันนี้", "แฟลชเซล", "flash sale"]):
                 promos = self.promotion_service.get_daily_deals(limit=10)
-                deal_title_str = "⚡ รวมสินค้าแฟลชเซลประจำวัน"
+                deal_title_str = "รวมสินค้าแฟลชเซลประจำวัน"
             elif any(k in q_lower or k in corr_lower for k in ["ประจำเดือน", "เดือนนี้"]):
                 promos = self.promotion_service.get_monthly_deals(limit=10)
-                deal_title_str = "📅 รวมดีลพิเศษประจำเดือนนี้"
+                deal_title_str = "รวมดีลพิเศษประจำเดือนนี้"
             else:
                 # Combined active deals
                 promos = self.promotion_service.get_daily_deals(limit=5) + self.promotion_service.get_monthly_deals(limit=5)
-                deal_title_str = "🏷️ รวมโปรโมชันและดีลพิเศษล่าสุด"
+                deal_title_str = "รวมโปรโมชันและดีลพิเศษล่าสุด"
 
             if promos:
                 for p in promos:
@@ -94,15 +94,15 @@ class TieredRouter:
 
         elif intent == "random_recommendation":
             products = self.product_service.get_fair_top5_recommendations()
-            reply_text = "🎲 สุ่มแนะนำเสื้อยืด 5 หมวดฮิต ยืดเปล่า สไตล์เด่นประจำสัปดาห์ครับ:"
+            reply_text = "สุ่มแนะนำเสื้อยืด 5 หมวดฮิต ยืดเปล่า สไตล์เด่นประจำสัปดาห์ครับ:"
             flex_payload = build_product_flex_carousel(products)
 
         elif intent == "fabric_comparison":
-            reply_text = "👕 สรุปข้อมูลนวัตกรรมเนื้อผ้า ยืดเปล่า ทั้ง 4 แบบสำหรับการใช้งานครับ:"
+            reply_text = "สรุปข้อมูลนวัตกรรมเนื้อผ้า ยืดเปล่า ทั้ง 4 แบบสำหรับการใช้งานครับ:"
             flex_payload = build_fabric_comparison_flex()
 
         elif intent == "size_recommendation":
-            reply_text = "📏 ตารางไซส์มาตรฐานยืดเปล่า และคำแนะนำการเลือกขนาดเสื้อครับ:"
+            reply_text = "ตารางไซส์มาตรฐานยืดเปล่า และคำแนะนำการเลือกขนาดเสื้อครับ:"
             flex_payload = build_size_recommendation_flex()
 
         else: # Default fallback
