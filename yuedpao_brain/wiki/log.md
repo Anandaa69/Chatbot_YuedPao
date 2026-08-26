@@ -188,3 +188,17 @@ Backlink: [[index]]
 - Added Tier 1 Promotion Priority Rule in `intent_service.py` and auto-sync guard for `intent_few_shot` collection.
 - **Result:** Achieved **93.33% Accuracy** (14/15) and **< 1.5 ms Latency** on Thai promotion typo queries.
 - **Verification:** Verified 100% pass rate across automated test suite (`python -m pytest`: 3/3 passed).
+
+---
+
+### 📌 Session 9: Intent Classification Comparison & 5-Fold CV Leakage Fix (`compare_editdistance_vs_pure_bert.ipynb`)
+- Created and upgraded dedicated experiment notebook `notebooks/intent_rank/compare_editdistance_vs_pure_bert.ipynb` evaluating 5 architectures:
+  1. Method 1: Pure BERT (`intfloat/multilingual-e5-small`) on raw queries.
+  2. Method 2: Edit Distance + BERT (Tier 0 spell correction pre-processing).
+  3. Method 3: Tier 1 Priority Rules + Pure BERT.
+  4. Method 4a: 4-Tier Pipeline (No Few-Shot ChromaDB Lookup).
+  5. Method 4b: Full 4-Tier Pipeline (With 100% Leak-Free 5-Fold Stratified Cross-Validation Few-Shot Indexing).
+- Resolved Data Leakage by isolating ChromaDB Few-Shot indexing to Train Folds (80%) and testing strictly on Test Folds (20%).
+- Added Model Warmup step for precise sub-millisecond latency profiling.
+
+
