@@ -79,10 +79,15 @@ class PromotionService:
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='promotions';")
         if cursor.fetchone():
             cursor.execute("""
-                SELECT promo_id, product_id, name, deal_type, deal_title, discount_tag, deal_price, original_price, image_url, product_url, description, colors
-                FROM promotions
+                SELECT p.promo_id, p.product_id, p.name, p.deal_type, p.deal_title, p.discount_tag, p.deal_price, p.original_price, p.image_url, p.product_url, p.description, p.colors, pr.image_url AS prod_img
+                FROM promotions p
+                LEFT JOIN products pr ON p.product_id = pr.product_id
             """)
             rows = cursor.fetchall()
+
+            # Pre-fetch fallback image catalog from products table
+            cursor.execute("SELECT name, image_url FROM products WHERE image_url IS NOT NULL AND image_url != ''")
+            product_catalog = cursor.fetchall()
 
             for r in rows:
                 p_id = r[1]
@@ -92,10 +97,28 @@ class PromotionService:
                 disc_tag = r[5] or ""
                 d_price = r[6]
                 orig_price = r[7] or d_price
-                img_url = r[8] or ""
+                raw_img = r[8] or ""
+                prod_img = r[12] or ""
                 p_url = r[9] or ""
                 desc = r[10] or ""
                 colors = r[11] or ""
+
+                # Smart Image Lookup: Prefer direct product image -> category keyword match -> default logo
+                img_url = ""
+                if prod_img and not prod_img.endswith(".svg"):
+                    img_url = prod_img
+                elif raw_img and not raw_img.endswith(".svg") and "free-delivery" not in raw_img:
+                    img_url = raw_img
+                else:
+                    # Keyword fallback search in products catalog
+                    p_name_lower = p_name.lower()
+                    for cat_name, cat_img in product_catalog:
+                        cat_lower = cat_name.lower()
+                        if any(kw in p_name_lower and kw in cat_lower for kw in ["jeans", "ยีนส์", "polo", "longsleeve", "crop", "cargo", "short"]):
+                            img_url = cat_img
+                            break
+                    if not img_url:
+                        img_url = "https://mp-static.yuedpao.com/images/logo.png"
 
                 promo_item = {
                     "promo_id": r[0],
@@ -127,6 +150,7 @@ class PromotionService:
                     "type": "promotion",
                     "product_id": p_id,
                     "name": p_name,
+                    "deal_type": d_type,
                     "deal_title": d_title,
                     "discount_tag": disc_tag,
                     "deal_price": d_price,
@@ -181,7 +205,9 @@ class PromotionService:
                 collection_name = "yuedpao_promotions_e5"
                 
                 # Reset collection for fast atomic refresh
-                if collection_name in [c.name for c in self.chroma_client.list_collections()]:
+                existing_cols = self.chroma_client.list_collections()
+                existing_names = [getattr(c, "name", str(c)) for c in existing_cols]
+                if collection_name in existing_names:
                     self.chroma_client.delete_collection(collection_name)
                     
                 self.chroma_collection = self.chroma_client.create_collection(
@@ -213,12 +239,20 @@ class PromotionService:
             except Exception as e:
                 print(f"⚠️ Warning: Could not build BM25 Index in PromotionService: {e}")
 
-    def search_promotions(self, raw_query: str, top_k: int = 5, k_constant: int = 60) -> List[Dict[str, Any]]:
+    def search_promotions(self, raw_query: str, top_k: int = 5, k_constant: int = 60, deal_type_filter: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Performs Hybrid RRF Search across promotion deal items.
         """
         if not self.documents:
             return []
+
+        # Detect deal_type_filter if not explicitly passed
+        if not deal_type_filter:
+            raw_lower = raw_query.lower()
+            if any(k in raw_lower for k in ["ประจำวัน", "วันนี้", "แฟลชเซล", "flash sale"]):
+                deal_type_filter = "daily_deal"
+            elif any(k in raw_lower for k in ["ประจำเดือน", "เดือนนี้"]):
+                deal_type_filter = "monthly_deal"
 
         # 1. BM25 score
         bm25_scores = [0.0] * len(self.documents)
@@ -239,6 +273,12 @@ class PromotionService:
         for bm25_rank, idx in enumerate(bm25_ranked_indices):
             doc_id = self.doc_ids[idx]
             meta = self.metadatas[idx]
+            
+            # Apply deal_type filter if specified
+            if deal_type_filter:
+                if meta.get("type") != "promotion" or meta.get("deal_type") != deal_type_filter:
+                    continue
+
             r_bm25 = bm25_rank + 1
             r_vec = vector_rank_map.get(doc_id, 9999)
             rrf_score = (1.0 / (k_constant + r_bm25)) + (1.0 / (k_constant + r_vec))
@@ -249,3 +289,24 @@ class PromotionService:
 
         sorted_rrf = sorted(scores.items(), key=lambda x: x[1]["score"], reverse=True)[:top_k]
         return [res[1]["metadata"] for res in sorted_rrf]
+
+    def get_daily_deals(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Direct Rule-Based SQL Query: Fetches Daily Deals (daily_deal) directly from SQLite DB (0% Vector uncertainty).
+        """
+        daily_items = [p for p in self.promotions if p.get("deal_type") == "daily_deal"]
+        return daily_items[:limit]
+
+    def get_monthly_deals(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Direct Rule-Based SQL Query: Fetches Monthly Deals (monthly_deal) directly from SQLite DB (0% Vector uncertainty).
+        """
+        monthly_items = [p for p in self.promotions if p.get("deal_type") == "monthly_deal"]
+        return monthly_items[:limit]
+
+    def get_all_coupons(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Direct Rule-Based SQL Query: Fetches Coupon Tickets directly from SQLite DB.
+        """
+        coupon_items = [m for m in self.metadatas if m.get("type") == "coupon"]
+        return coupon_items[:limit]

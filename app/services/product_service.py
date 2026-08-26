@@ -169,20 +169,31 @@ class ProductService:
             print(f"⚠️ Warning: Database file not found at {self.db_path}")
             return
             
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT product_id, name, category, fabric_collection, style_fit, price, description, image_url FROM products")
-        product_rows = cursor.fetchall()
-        
-        cursor.execute("SELECT product_id, GROUP_CONCAT(DISTINCT color_name) FROM product_variants GROUP BY product_id")
-        variant_color_map = dict(cursor.fetchall())
-        conn.close()
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Check if products table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='products';")
+            if not cursor.fetchone():
+                conn.close()
+                return
+
+            cursor.execute("SELECT product_id, name, category, fabric_collection, style_fit, price, description, image_url, product_url FROM products")
+            product_rows = cursor.fetchall()
+            
+            cursor.execute("SELECT product_id, GROUP_CONCAT(DISTINCT color_name) FROM product_variants GROUP BY product_id")
+            variant_color_map = dict(cursor.fetchall())
+            conn.close()
+        except Exception as e:
+            print(f"⚠️ Warning: Error querying SQLite products table: {e}")
+            return
 
         self.products = []
         for r in product_rows:
             p_id = r[0]
             colors_str = variant_color_map.get(p_id, "") or ""
+            p_url = r[8] or f"https://www.yuedpao.com/physical/{p_id}"
             self.products.append({
                 "product_id": p_id,
                 "name": r[1],
@@ -192,6 +203,7 @@ class ProductService:
                 "price": r[5],
                 "description": r[6] or "",
                 "image_url": r[7] or "",
+                "product_url": p_url,
                 "colors": colors_str
             })
 
@@ -258,6 +270,7 @@ class ProductService:
                 "style": p["style"],
                 "price": p["price"],
                 "image_url": p["image_url"],
+                "product_url": p["product_url"],
                 "colors": color_val
             })
 
@@ -399,18 +412,27 @@ class ProductService:
         sorted_rrf = sorted(rrf_scores.items(), key=lambda x: x[1]["score"], reverse=True)[:top_k]
         return [res[1]["metadata"] for res in sorted_rrf]
 
-    def get_fair_top5_recommendations(self, candidate_pool: List[Dict[str, Any]], session_history: List[str]) -> List[Dict[str, Any]]:
+    def rrf_hybrid_search(self, raw_query: str, top_k: int = 15) -> List[Dict[str, Any]]:
+        """Alias for search_products for backwards compatibility."""
+        return self.search_products(raw_query=raw_query, top_k=top_k)
+
+    def get_fair_top5_recommendations(self, candidate_pool: Optional[List[Dict[str, Any]]] = None, session_history: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
         Filters out items recently shown in the current user session,
         then randomly samples up to 5 items to generate a fresh, fair recommendation list.
         Modifies session_history in-place (keeps last 10 product IDs).
         """
+        if candidate_pool is None:
+            candidate_pool = self.products
+        if session_history is None:
+            session_history = []
+
         if not candidate_pool:
             return []
 
         fresh_pool = [
             item for item in candidate_pool 
-            if item["product_id"] not in session_history
+            if item.get("product_id") not in session_history
         ]
         
         if len(fresh_pool) < 5:
@@ -419,7 +441,7 @@ class ProductService:
         sample_size = min(len(fresh_pool), 5)
         selected_items = random.sample(fresh_pool, sample_size)
         
-        new_shown_ids = [item["product_id"] for item in selected_items]
+        new_shown_ids = [item.get("product_id") for item in selected_items]
         session_history.extend(new_shown_ids)
         
         del session_history[:-10]

@@ -75,7 +75,9 @@ class IntentService:
             "product_search": "passage: ซื้อเสื้อ หาเสื้อ ขอดูเสื้อ สั่งซื้อเสื้อผ้า เสื้อยืด กางเกง เสื้อโปโล เสื้อเชิ้ต ราคาสินค้า สี ไซส์ ทรงเสื้อ มีงบ มีราคา ไม่เกิน",
             "size_recommendation": "passage: สอบถามไซส์ แนะนำไซส์เสื้อ ขนาดเสื้อ รอบอก สัดส่วนความสูงและน้ำหนัก ไซส์ไหนดี ใส่ไซส์อะไร เหมาะกับไซส์อะไร",
             "fabric_comparison": "passage: สอบถามเนื้อผ้า เปรียบเทียบคุณสมบัติผ้า ผ้าต่างกันยังไง ซักแล้วยับไหม ผ้านุ่ม ระบายอากาศ ดีกว่ายังไง คุณสมบัติของผ้า",
-            "promotion_discount": "passage: โปรโมชัน ดีลพิเศษ ประจำวัน ประจำเดือน แฟลชเซล ส่วนลด คูปอง ลดราคา วันนี้ เดือนนี้ ส่งฟรี"
+            "coupon_ticket": "passage: คูปองส่วนลด โค้ดส่วนลด บัตรส่วนลด วอเชอร์ voucher code กดคัดลอกโค้ด สิทธิ์ส่วนลด คูปองยืดเปล่า",
+            "promotion_deal": "passage: โปรโมชัน ดีลพิเศษ ประจำวัน ประจำเดือน แฟลชเซล flash sale ดีลเด็ด สินค้าลดราคา ส่งฟรี วันนี้ เดือนนี้",
+            "random_recommendation": "passage: สุ่มแนะนำ สุ่มสินค้า สินค้าแนะนำ ลองดูอะไรดี เลือกให้หน่อย ไม่รู้จะซื้ออะไร แนะนำเสื้อ"
         }
         self.intent_classes = list(self.INTENT_PASSAGES.keys())
         self.passage_embeddings = None
@@ -97,7 +99,11 @@ class IntentService:
 
     def _load_stopwords(self) -> set:
         raw_stopwords = set(thai_stopwords()) if thai_stopwords else set()
-        PRESERVED_KEYWORDS = {"ไม่เกิน", "งบ", "ราคา", "ประมาณ", "สูง", "หนัก", "อก", "รอบอก", "ไซส์", "ต่าง", "ยังไง", "ผ้า", "ดีกว่า", "คุณสมบัติ", "หด", "ยับ"}
+        PRESERVED_KEYWORDS = {
+            "ไม่เกิน", "งบ", "ราคา", "ประมาณ", "สูง", "หนัก", "อก", "รอบอก", "ไซส์",
+            "ต่าง", "ยังไง", "ผ้า", "ดีกว่า", "คุณสมบัติ", "หด", "ยับ",
+            "วันนี้", "ประจำวัน", "เดือนนี้", "ประจำเดือน", "แฟลชเซล", "โค้ด", "คูปอง", "ดีล", "โปร"
+        }
         POLITE_PARTICLES = {"ครับ", "ค่ะ", "จ้า", "นะ", "หน่อย", "ด้วย", "มั้ย", "ไหม", "จ๊ะ", "ะ", "ขอ", "อยาก", "ได้"}
         return (raw_stopwords - PRESERVED_KEYWORDS) | POLITE_PARTICLES
 
@@ -119,7 +125,10 @@ class IntentService:
             self.chroma_client.delete_collection("intent_few_shot")
         except Exception:
             pass
-        self.chroma_collection = self.chroma_client.create_collection("intent_few_shot")
+        self.chroma_collection = self.chroma_client.create_collection(
+            "intent_few_shot",
+            metadata={"hnsw:space": "cosine"}
+        )
 
         docs = [f"query: {item['query']}" for item in self.ground_truth]
         embeddings = self.bert_model.encode(docs, convert_to_tensor=False).tolist()
@@ -189,6 +198,10 @@ class IntentService:
         corrected_query, spell_time = self.correct_spelling(raw_query)
         raw_lower = raw_query.lower()
         
+        def _return_with_log(res_dict):
+            print(f"🔍 [NLP Engine] Query: '{raw_query}' ──► Cleaned: '{res_dict['corrected_query']}' | Intent: '{res_dict['intent']}' | Tier: '{res_dict['tier_used']}' | Latency: {res_dict['latency_ms']:.2f}ms")
+            return res_dict
+
         # --- Tier 1 Priority Rules ---
         is_size_fitting = bool(
             re.search(r'(?:สูง|หนัก)\s*\d+', raw_lower) or
@@ -199,46 +212,68 @@ class IntentService:
         )
         if is_size_fitting and not re.search(r'(?:ไม่เกิน|งบ|ราคา|บาท)', raw_lower):
             total_time = (time.perf_counter() - start_t) * 1000.0
-            return {
+            return _return_with_log({
                 "intent": "size_recommendation",
                 "tier_used": "Tier 1: Priority Rule (Size)",
                 "corrected_query": corrected_query,
                 "confidence": 1.0,
                 "latency_ms": total_time
-            }
+            })
             
         fabric_triggers = ["ต่างกันยังไง", "ต่างกับ", "ดีกว่ายังไง", "คุณสมบัติ", "ซักแล้ว", "หดไหม", "ไม่ยับและไม่ต้องรีด", "มีแบบไหนบ้าง", "มีรุ่นไหนบ้าง", "ระบายอากาศได้ดีที่สุด", "ทนทานแค่ไหน", "ดูแลยังไง", "เป็นยังไงบ้าง", "ดีมั้ย", "นุ่มแค่ไหน", "ยืดหยุ่นได้แค่ไหน", "เหมาะสำหรับ", "เหมาะกับคนที่"]
         if any(ft in raw_lower for ft in fabric_triggers) and not re.search(r'(?:ไม่เกิน|งบ|\d+\s*บาท)', raw_lower):
             total_time = (time.perf_counter() - start_t) * 1000.0
-            return {
+            return _return_with_log({
                 "intent": "fabric_comparison",
                 "tier_used": "Tier 1: Priority Rule (Fabric)",
                 "corrected_query": corrected_query,
                 "confidence": 1.0,
                 "latency_ms": total_time
-            }
+            })
             
-        promo_triggers = ["โปรโมชัน", "โปรโมชั่น", "ดีลพิเศษ", "แฟลชเซล", "flash sale", "ส่วนลด", "คูปอง", "ประจำวัน", "ประจำเดือน", "ลดราคา", "ส่งฟรี", "ดีล", "โปร"]
-        if any(pt in raw_lower or pt in corrected_query for pt in promo_triggers) and not re.search(r'(?:ไม่เกิน|งบ|\d+\s*บาท)', raw_lower):
+        coupon_triggers = ["คูปอง", "โค้ด", "วอเชอร์", "voucher", "ส่วนลด"]
+        if any(ct in raw_lower or ct in corrected_query for ct in coupon_triggers) and not re.search(r'(?:ไม่เกิน|งบ|\d+\s*บาท)', raw_lower):
             total_time = (time.perf_counter() - start_t) * 1000.0
-            return {
-                "intent": "promotion_discount",
-                "tier_used": "Tier 1: Priority Rule (Promotion)",
+            return _return_with_log({
+                "intent": "coupon_ticket",
+                "tier_used": "Tier 1: Priority Rule (Coupon)",
                 "corrected_query": corrected_query,
                 "confidence": 1.0,
                 "latency_ms": total_time
-            }
+            })
+
+        deal_triggers = ["แฟลชเซล", "flash sale", "ประจำวัน", "ประจำเดือน", "ดีลพิเศษ", "ดีล", "โปรโมชัน", "โปรโมชั่น", "โปรเด็ด", "ลดราคา", "โปร"]
+        if any(dt in raw_lower or dt in corrected_query for dt in deal_triggers) and not re.search(r'(?:ไม่เกิน|งบ|\d+\s*บาท)', raw_lower):
+            total_time = (time.perf_counter() - start_t) * 1000.0
+            return _return_with_log({
+                "intent": "promotion_deal",
+                "tier_used": "Tier 1: Priority Rule (Deal)",
+                "corrected_query": corrected_query,
+                "confidence": 1.0,
+                "latency_ms": total_time
+            })
 
         product_triggers = ["ไม่เกิน", "งบ", "บาท", "ขอดู", "อยากได้", "หาเสื้อ", "มีเสื้อ", "ราคาประมาณ", "สักตัว"]
         if any(pt in raw_lower for pt in product_triggers):
             total_time = (time.perf_counter() - start_t) * 1000.0
-            return {
+            return _return_with_log({
                 "intent": "product_search",
                 "tier_used": "Tier 1: Priority Rule (Product)",
                 "corrected_query": corrected_query,
                 "confidence": 1.0,
                 "latency_ms": total_time
-            }
+            })
+
+        random_triggers = ["สุ่ม", "สุ่มแนะนำ", "แนะนำหน่อย", "สินค้าแนะนำ", "แนะนำเสื้อ", "ลองดูอะไรดี", "เลือกให้หน่อย", "ช่วยเลือก", "ไม่รู้จะซื้ออะไร"]
+        if any(rt in raw_lower for rt in random_triggers):
+            total_time = (time.perf_counter() - start_t) * 1000.0
+            return _return_with_log({
+                "intent": "random_recommendation",
+                "tier_used": "Tier 1: Priority Rule (Random)",
+                "corrected_query": corrected_query,
+                "confidence": 1.0,
+                "latency_ms": total_time
+            })
 
         # --- Tier 2.5: ChromaDB Few-Shot Vector Search ---
         if self.chroma_collection and self.bert_model:
@@ -253,13 +288,13 @@ class IntentService:
                 top_intent = results["metadatas"][0][0]["intent"]
                 if similarity >= 0.70:
                     total_time = (time.perf_counter() - start_t) * 1000.0
-                    return {
+                    return _return_with_log({
                         "intent": top_intent,
                         "tier_used": "Tier 2.5: ChromaDB Few-Shot Vector",
                         "corrected_query": corrected_query,
                         "confidence": float(similarity),
                         "latency_ms": total_time
-                    }
+                    })
 
         # --- Tier 3: BERT Passage Fallback ---
         if self.bert_model and self.passage_embeddings is not None:
@@ -268,20 +303,20 @@ class IntentService:
             cosine_scores = util.cos_sim(query_embedding, self.passage_embeddings)[0]
             best_idx = int(cosine_scores.argmax())
             total_time = (time.perf_counter() - start_t) * 1000.0
-            return {
+            return _return_with_log({
                 "intent": self.intent_classes[best_idx],
                 "tier_used": "Tier 3: BERT Passage Match",
                 "corrected_query": corrected_query,
                 "confidence": float(cosine_scores[best_idx]),
                 "latency_ms": total_time
-            }
+            })
 
         # Fallback
         total_time = (time.perf_counter() - start_t) * 1000.0
-        return {
+        return _return_with_log({
             "intent": "product_search",
             "tier_used": "Tier Default Fallback",
             "corrected_query": corrected_query,
             "confidence": 0.5,
             "latency_ms": total_time
-        }
+        })
