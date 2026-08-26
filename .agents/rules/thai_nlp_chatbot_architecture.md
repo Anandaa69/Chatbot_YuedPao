@@ -51,3 +51,11 @@ description: Guidelines for Thai NLP Intent Classification and Hybrid Product Se
 * **Rule:** At the end of every work session or major architectural decision (ADR), the AI agent MUST automatically append a structured progress log entry to `yuedpao_brain/wiki/log.md`.
 * **Rationale:** Preserves project context, system decisions, benchmark performance metrics, and database schema updates across agent conversations.
 
+## 9. Coupon Ticket Scraping & Dual-Layer Indexing Standard
+* **Rule:** Coupon data extracted from YuedPao web scrapers (`notebooks/04_coupon_scraper.ipynb`) must be persisted and indexed across two distinct layers:
+  1. **Persistence Layer (SQLite `yuedpao_chatbot.db` - table `coupons`):** Store complete coupon records including `coupon_code`, `discount_title`, `min_spend`, `valid_duration`, `detailed_condition`, `eligibility_tag`, and `badge_svg_html`.
+  2. **Search Indexing Layer (ChromaDB + BM25):** `PromotionService` (`reload_and_index()`) must load the `coupons` table into `self.documents` as structured passages (`passage: คูปองส่วนลด YuedPao: ... | โค้ดส่วนลด: ... | ...`) to build ChromaDB embeddings (`yuedpao_promotions_e5`) and BM25 corpus for real-time RRF Hybrid Search.
+* **Scraper Interaction Guard:** Selenium scrapers targeting interactive modal popups (e.g., `<p>เงื่อนไขการใช้งาน</p>`) MUST dismiss cookie banner overlays (`document.querySelectorAll('button') ... 'ยอมรับทั้งหมด'`) prior to clicking terms links to prevent click interception.
+* **LINE Flex UI Standard:** LINE Flex Carousel cards generated for coupons must provide a `clipboard` action button (`📋 คัดลอกโค้ด`) allowing users to tap and copy promo codes (e.g., `NEWMEMBER5`) directly to their device clipboard.
+
+

@@ -9,6 +9,19 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-26] - Session 7: Coupon Ticket & Terms Modal Scraper (`04_coupon_scraper.ipynb`)
+
+### 🎯 Key Accomplishments
+1. **Coupon Ticket & Terms Modal Scraper (`notebooks/04_coupon_scraper.ipynb`)**:
+   - Created dedicated Jupyter Notebook for scraping coupon containers (`class="w-full flex"`) and left ticket badges (`<div class="flex justify-center items-center flex-col gap-3">` with SVG icon `<g id="bxs:discount">`).
+   - Implemented automated popup clicker targeting `<p ...>เงื่อนไขการใช้งาน</p>` to extract **Promo Codes** (e.g. `NEWMEMBER5`, `DIS1000YP1`, `YUEDPAO006`), **Validity Duration** (e.g. `24 ก.ค. 2026 10:00 - 31 ธ.ค. 2033 10:00`), and **Detailed Terms** (e.g. `เมื่อซื้อสินค้า 200 บาทขึ้นไป`).
+2. **Database Integration (`coupons` Table)**:
+   - Created `coupons` table in `yuedpao_chatbot.db` storing coupon ID, promo code, discount title, min spend, valid duration, detailed condition, eligibility tag, and raw container HTML.
+3. **LINE Flex Message Generator**:
+   - Implemented `build_line_flex_coupon_carousel()` converting extracted coupon records into LINE Flex Message (Carousel) JSON with `clipboard` action buttons for copying promo codes.
+
+---
+
 ## 📅 [2026-08-25] - Session 6: 200 QA Expansion, Enhanced Diagnostic Benchmarking & Price Smart Fallback ADR
 
 ### 🎯 Key Accomplishments

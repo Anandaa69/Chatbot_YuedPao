@@ -63,6 +63,11 @@ class PromotionService:
         self.reload_and_index()
 
     def _load_promotions_from_db(self):
+        self.promotions = []
+        self.documents = []
+        self.doc_ids = []
+        self.metadatas = []
+
         if not os.path.exists(self.db_path):
             print(f"⚠️ Warning: Database file not found at {self.db_path}")
             return
@@ -70,74 +75,98 @@ class PromotionService:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # Verify table exists
+        # 1. Load promotions
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='promotions';")
-        if not cursor.fetchone():
-            conn.close()
-            return
+        if cursor.fetchone():
+            cursor.execute("""
+                SELECT promo_id, product_id, name, deal_type, deal_title, discount_tag, deal_price, original_price, image_url, product_url, description, colors
+                FROM promotions
+            """)
+            rows = cursor.fetchall()
 
-        cursor.execute("""
-            SELECT promo_id, product_id, name, deal_type, deal_title, discount_tag, deal_price, original_price, image_url, product_url, description, colors
-            FROM promotions
-        """)
-        rows = cursor.fetchall()
+            for r in rows:
+                p_id = r[1]
+                p_name = r[2]
+                d_type = r[3]
+                d_title = r[4]
+                disc_tag = r[5] or ""
+                d_price = r[6]
+                orig_price = r[7] or d_price
+                img_url = r[8] or ""
+                p_url = r[9] or ""
+                desc = r[10] or ""
+                colors = r[11] or ""
+
+                promo_item = {
+                    "promo_id": r[0],
+                    "product_id": p_id,
+                    "name": p_name,
+                    "deal_type": d_type,
+                    "deal_title": d_title,
+                    "discount_tag": disc_tag,
+                    "deal_price": d_price,
+                    "original_price": orig_price,
+                    "image_url": img_url,
+                    "product_url": p_url,
+                    "description": desc,
+                    "colors": colors
+                }
+                self.promotions.append(promo_item)
+
+                clean_desc = desc.replace("\n", " ").strip()
+                if len(clean_desc) > 120:
+                    clean_desc = clean_desc[:117] + "..."
+
+                doc_text = (
+                    f"passage: โปรโมชันดีลพิเศษ: {p_name} | หัวข้อดีล: {d_title} | ป้ายส่วนลด: {disc_tag} | "
+                    f"ราคาพิเศษ: ฿{d_price} (ปกติ ฿{orig_price}) | เฉดสี: {colors} | จุดเด่น: {clean_desc}"
+                )
+                self.documents.append(doc_text)
+                self.doc_ids.append(f"promo_{r[0]}")
+                self.metadatas.append({
+                    "type": "promotion",
+                    "product_id": p_id,
+                    "name": p_name,
+                    "deal_title": d_title,
+                    "discount_tag": disc_tag,
+                    "deal_price": d_price,
+                    "original_price": orig_price,
+                    "image_url": img_url,
+                    "product_url": p_url,
+                    "colors": colors
+                })
+
+        # 2. Load coupons
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='coupons';")
+        if cursor.fetchone():
+            cursor.execute("""
+                SELECT coupon_id, badge_title, badge_bg_color, discount_title, coupon_code, min_spend, expiry_date, valid_duration, detailed_condition, eligibility_tag
+                FROM coupons
+            """)
+            c_rows = cursor.fetchall()
+            for r in c_rows:
+                c_id, b_title, b_color, d_title, code, min_sp, exp, duration, cond, tag = r
+                doc_text = (
+                    f"passage: คูปองส่วนลด YuedPao: {b_title} | โค้ดส่วนลด: {code} | หัวข้อส่วนลด: {d_title} | "
+                    f"ขั้นต่ำ: {min_sp} บาท | เงื่อนไขเพิ่มเติม: {cond} | ระยะเวลาใช้งาน: {duration} | สิทธิ์ผู้ใช้: {tag}"
+                )
+                self.documents.append(doc_text)
+                self.doc_ids.append(f"coupon_{c_id}")
+                self.metadatas.append({
+                    "type": "coupon",
+                    "coupon_id": c_id,
+                    "badge_title": b_title,
+                    "badge_bg_color": b_color,
+                    "discount_title": d_title,
+                    "coupon_code": code,
+                    "min_spend": min_sp,
+                    "expiry_date": exp,
+                    "valid_duration": duration,
+                    "detailed_condition": cond,
+                    "eligibility_tag": tag
+                })
+
         conn.close()
-
-        self.promotions = []
-        self.documents = []
-        self.doc_ids = []
-        self.metadatas = []
-
-        for r in rows:
-            p_id = r[1]
-            p_name = r[2]
-            d_type = r[3]
-            d_title = r[4]
-            disc_tag = r[5] or ""
-            d_price = r[6]
-            orig_price = r[7] or d_price
-            img_url = r[8] or ""
-            p_url = r[9] or ""
-            desc = r[10] or ""
-            colors = r[11] or ""
-
-            promo_item = {
-                "promo_id": r[0],
-                "product_id": p_id,
-                "name": p_name,
-                "deal_type": d_type,
-                "deal_title": d_title,
-                "discount_tag": disc_tag,
-                "deal_price": d_price,
-                "original_price": orig_price,
-                "image_url": img_url,
-                "product_url": p_url,
-                "description": desc,
-                "colors": colors
-            }
-            self.promotions.append(promo_item)
-
-            clean_desc = desc.replace("\n", " ").strip()
-            if len(clean_desc) > 120:
-                clean_desc = clean_desc[:117] + "..."
-
-            doc_text = (
-                f"passage: โปรโมชันดีลพิเศษ: {p_name} | หัวข้อดีล: {d_title} | ป้ายส่วนลด: {disc_tag} | "
-                f"ราคาพิเศษ: ฿{d_price} (ปกติ ฿{orig_price}) | เฉดสี: {colors} | จุดเด่น: {clean_desc}"
-            )
-            self.documents.append(doc_text)
-            self.doc_ids.append(f"promo_{r[0]}")
-            self.metadatas.append({
-                "product_id": p_id,
-                "name": p_name,
-                "deal_title": d_title,
-                "discount_tag": disc_tag,
-                "deal_price": d_price,
-                "original_price": orig_price,
-                "image_url": img_url,
-                "product_url": p_url,
-                "colors": colors
-            })
 
     def reload_and_index(self):
         """
