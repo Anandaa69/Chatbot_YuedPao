@@ -248,6 +248,8 @@ async def main_async():
                         help="Limit the number of detailed products to scrape per category (useful for fast testing)")
     parser.add_argument("--limit-categories", type=int, default=None,
                         help="Limit the number of categories to crawl when using --all (useful for fast testing)")
+    parser.add_argument("--force", action="store_true",
+                        help="Force re-scraping and updating product details even if product already exists in database")
     args = parser.parse_args()
     
     # Step 1: Initialize Database
@@ -345,7 +347,7 @@ async def main_async():
                     # Optimization 1: Cache checking in database
                     # If this product has already been fully scraped from another category, 
                     # we just add the category mapping and skip launching/visiting the network page.
-                    if check_product_exists(p_id):
+                    if check_product_exists(p_id) and not args.force:
                         save_product_category_mapping(p_id, cat_id)
                         total_success_count += 1
                         total_skipped_count += 1

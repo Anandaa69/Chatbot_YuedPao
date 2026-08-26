@@ -393,7 +393,11 @@ class YuedpaoScraperService:
                             g_url not in gallery_images):
                             gallery_images.append(g_url)
 
-            # 8. Infer structural metadata from product name/URL
+            # 8. Check strictly for main product heading "สินค้าหมด" (<h4 ...>สินค้าหมด</h4>)
+            out_of_stock_h4 = soup.find(lambda tag: tag.name in ["h4", "h5"] and "สินค้าหมด" in tag.get_text())
+            is_available = (out_of_stock_h4 is None)
+
+            # 9. Infer structural metadata from product name/URL
             category = self._infer_category(product_name, url)
             fabric_collection = self._infer_fabric_collection(product_name)
             style_fit = self._infer_style_fit(product_name)
@@ -411,7 +415,7 @@ class YuedpaoScraperService:
                 "size_chart_url": size_chart_url,
                 "gallery_images": gallery_images,
                 "product_url": url,
-                "is_available": any(sizes.values()) if sizes else False
+                "is_available": is_available
             }
         finally:
             if should_close_browser:

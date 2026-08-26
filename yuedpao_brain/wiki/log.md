@@ -439,17 +439,26 @@ Backlink: [[index]]
 
 ---
 
-### 📌 Session 23: DB Price Correction & Bare Keyword Substring Fix ('ปก' vs 'ปกป้อง')
-1. **SQLite Database Price Correction (`yuedpao_chatbot.db`)**:
-   - Fixed corrupted scraped price for `Y Collection Polo 2025_Black` (`product_id = 24jyjza9w0g5etp2a4j2`) from `2925` Baht to `292.5` Baht.
-2. **Strict Category Intent Filter & Substring Bug Fix**:
-   - **Root Cause Identified**: The bare keyword `'ปก'` matched inside `'ปกป้อง'` (protect) in description text of round-neck t-shirts (`Ultrasoft Unisex`), causing t-shirts to bypass polo intent filtering.
-   - **Fix**: Replaced bare `'ปก'` check with explicit keywords `polo`, `โปโล`, `คอปก`, `เสื้อโปโล`, `หมวดหมู่: polo` in `compute_rrf()` inside [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py).
-3. **Verification**:
-   - Tested query `ขอเสื้อผู้ชายคอปก ราคาต่ำกว่า 300 สีดำ`:
-     - **Item 1:** `Y Collection Polo 2025_Black` | Price: ฿292.5 (Black Polo shirt!)
-     - **Item 2:** `Polo LongSleeve Striped_Rosewood` | Price: ฿290 (Polo shirt!)
-     - **Round-neck T-shirts:** 100% eliminated (0 non-polo items rendered).
+### 📌 Session 29: Targeted Out-of-Stock Heading Match Fix (`h4` / `h5`)
+1. **Root Cause Analysis & Fix ([scraper_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/scraper_service.py))**:
+   - **Discovered Trap**: In-stock product pages (such as `Milky Way`) contain a "สินค้าที่คุณอาจชอบ" (Recommended Products) grid carousel at the bottom of the page. Out-of-stock items in that footer carousel have `<span>สินค้าหมด</span>` badges.
+   - Performing a naive global `"สินค้าหมด" in page_text` search caused in-stock pages to be falsely flagged as out of stock.
+   - **Fix**: Updated `scrape_product_detail` to target specifically the main product out-of-stock heading element:
+     ```python
+     out_of_stock_h4 = soup.find(lambda tag: tag.name in ["h4", "h5"] and "สินค้าหมด" in tag.get_text())
+     is_available = (out_of_stock_h4 is None)
+     ```
+2. **Verification & Testing**:
+   - Tested live against `Dark Green` (Out of stock) -> `is_available = False` (`0`).
+   - Tested live against `Milky Way` (In stock) -> `is_available = True` (`1`).
+   - Tested live against `Worm Yellow` (In stock) -> `is_available = True` (`1`).
+   - Full pytest suite passed clean (11/11 passed in 87s).
+
+
+
+
+
+
 
 
 

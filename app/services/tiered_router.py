@@ -50,11 +50,15 @@ class TieredRouter:
         reply_text = ""
         flex_payload = None
         
-        # 2. Dispatch based on Intent
         if intent == "product_search":
-            products = self.product_service.search_products(raw_query, top_k=5)
+            search_res = self.product_service.search_products(raw_query, top_k=5, return_dict=True)
+            products = search_res["products"]
+            fallback_msg = search_res.get("fallback_message")
             if products:
-                reply_text = f"พบสินค้าเสื้อยืดแบรนด์ยืดเปล่า {len(products)} รายการที่ตรงกับความต้องการของคุณครับ:"
+                if fallback_msg:
+                    reply_text = fallback_msg
+                else:
+                    reply_text = f"พบสินค้าแบรนด์ยืดเปล่า {len(products)} รายการที่ตรงกับความต้องการของคุณครับ:"
                 flex_payload = build_product_flex_carousel(products)
             else:
                 reply_text = "ขออภัยครับ ไม่พบสินค้าตรงกับเงื่อนไข ลองปรับงบประมาณหรือค้นหาด้วยสีอื่นดูนะครับ"

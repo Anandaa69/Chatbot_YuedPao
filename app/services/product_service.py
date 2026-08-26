@@ -7,7 +7,7 @@ import re
 import sqlite3
 import random
 import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 
 try:
     import chromadb
@@ -381,7 +381,7 @@ class ProductService:
             return "female"
         return None
 
-    def search_products(self, raw_query: str, top_k: int = 15, k_constant: int = 60) -> List[Dict[str, Any]]:
+    def search_products(self, raw_query: str, top_k: int = 15, k_constant: int = 60, return_dict: bool = False) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Main entry point for product retrieval. Combines BM25 and Vector DB search 
         using Reciprocal Rank Fusion (RRF), with integrated Intent Boost, Color Match Boost,
@@ -425,7 +425,7 @@ class ProductService:
                     print(f"⚠️ ChromaDB Recovery Failed: {retry_e}")
 
         # 3. RRF Fusion Helper
-        def compute_rrf(apply_price_filter: bool):
+        def compute_rrf(apply_price_filter: bool, apply_strict_intent: bool = True):
             scores = {}
             for bm25_rank, idx in enumerate(bm25_ranked_indices):
                 doc_id = self.doc_ids[idx]
@@ -447,15 +447,18 @@ class ProductService:
 
                 item_haystack = f"{meta['name']} {meta['category']} {meta['fabric']} {meta['style']} {self.documents[idx]}".lower()
 
-                # Strict Intent / Category Filter (e.g. polo, crop, jeans, babytee)
-                if "polo" in detected_intents and not ("polo" in item_haystack or "โปโล" in item_haystack or "คอปก" in item_haystack or "เสื้อโปโล" in item_haystack or "หมวดหมู่: polo" in item_haystack):
-                    continue
-                if "crop" in detected_intents and not ("crop" in item_haystack or "ครอป" in item_haystack):
-                    continue
-                if "babytee" in detected_intents and not ("babytee" in item_haystack or "เบบี้ที" in item_haystack):
-                    continue
-                if "jeans" in detected_intents and not ("jeans" in item_haystack or "ยีนส์" in item_haystack or "เดนิม" in item_haystack):
-                    continue
+                # Strict Intent / Category Filter
+                if apply_strict_intent:
+                    if "polo" in detected_intents and not ("polo" in item_haystack or "โปโล" in item_haystack or "คอปก" in item_haystack or "เสื้อโปโล" in item_haystack or "หมวดหมู่: polo" in item_haystack):
+                        continue
+                    if "crop" in detected_intents and not ("crop" in item_haystack or "ครอป" in item_haystack):
+                        continue
+                    if "babytee" in detected_intents and not ("babytee" in item_haystack or "เบบี้ที" in item_haystack):
+                        continue
+                    if "jeans" in detected_intents and not ("jeans" in item_haystack or "ยีนส์" in item_haystack or "เดนิม" in item_haystack):
+                        continue
+                    if "running" in detected_intents and not ("running" in item_haystack or "วิ่ง" in item_haystack or "รันนิ่ง" in item_haystack or "ออกกำลังกาย" in item_haystack):
+                        continue
 
                 # Intent Boost (1.60x for polo, 1.25x for others)
                 intent_boost = 1.0
@@ -480,15 +483,55 @@ class ProductService:
                 }
             return scores
 
-        # 1. Search with strict budget constraint
-        rrf_scores = compute_rrf(apply_price_filter=True)
+        # 1. Search with strict budget and strict intent constraint
+        strict_scores = compute_rrf(apply_price_filter=True, apply_strict_intent=True)
+        sorted_strict = sorted(strict_scores.items(), key=lambda x: x[1]["score"], reverse=True)
+        strict_items = [res[1]["metadata"] for res in sorted_strict]
 
-        # 2. Smart Price Fallback: Relax price constraint if 0 items in budget
-        if not rrf_scores and max_price is not None:
-            rrf_scores = compute_rrf(apply_price_filter=False)
+        fallback_message = None
 
-        sorted_rrf = sorted(rrf_scores.items(), key=lambda x: x[1]["score"], reverse=True)[:top_k]
-        return [res[1]["metadata"] for res in sorted_rrf]
+        if len(strict_items) >= top_k or (max_price is None and not detected_intents):
+            final_items = strict_items[:top_k]
+        else:
+            # 2. Smart Fallback: Relax price constraint while keeping category/intent intact
+            relaxed_scores = compute_rrf(apply_price_filter=False, apply_strict_intent=True)
+            sorted_relaxed = sorted(relaxed_scores.items(), key=lambda x: x[1]["score"], reverse=True)
+            relaxed_items = [res[1]["metadata"] for res in sorted_relaxed]
+
+            strict_ids = {p["product_id"] for p in strict_items}
+            needed = top_k - len(strict_items)
+            additional_items = [p for p in relaxed_items if p["product_id"] not in strict_ids][:needed]
+
+            final_items = strict_items + additional_items
+
+            # Build human-friendly fallback message
+            intent_label = ""
+            if "polo" in detected_intents:
+                intent_label = "เสื้อคอปก"
+            elif "crop" in detected_intents:
+                intent_label = "เสื้อครอป"
+            elif "jeans" in detected_intents:
+                intent_label = "กางเกงยีนส์"
+            elif "babytee" in detected_intents:
+                intent_label = "เสื้อเบบี้ที"
+            elif "running" in detected_intents:
+                intent_label = "เสื้อใส่วิ่งออกกำลังกาย"
+            else:
+                intent_label = "สินค้า"
+
+            if len(strict_items) > 0 and len(additional_items) > 0:
+                fallback_message = f"พบ{intent_label}ตรงตามงบประมาณ {len(strict_items)} รายการ และขอแนะนำรุ่นสไตล์เดียวกันในงบใกล้เคียงเพิ่มเติมครับ:"
+            elif len(strict_items) == 0 and len(final_items) > 0:
+                fallback_message = f"ไม่พบ{intent_label}ในงบประมาณดังกล่าว แต่ขอแนะนำรุ่นสไตล์เดียวกันในงบใกล้เคียงที่สุดให้ครับ:"
+
+        if return_dict:
+            return {
+                "products": final_items,
+                "fallback_message": fallback_message,
+                "strict_count": len(strict_items)
+            }
+
+        return final_items
 
     def rrf_hybrid_search(self, raw_query: str, top_k: int = 15) -> List[Dict[str, Any]]:
         """Alias for search_products for backwards compatibility."""
