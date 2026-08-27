@@ -24,7 +24,14 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
         product_url = item.get("product_url") or "https://yuedpao.com"
         color_str = ", ".join(colors[:3]) if isinstance(colors, list) else str(colors)
         
-        price_text = f"{price:,} บาท" if price else "สอบถามราคา"
+        try:
+            val = float(str(price).replace("..", "."))
+            if val.is_integer():
+                price_text = f"{int(val):,} บาท"
+            else:
+                price_text = f"{round(val, 1):,} บาท"
+        except Exception:
+            price_text = "สอบถามราคา"
         
         contents = [
             # Category Badge

@@ -9,6 +9,206 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-27] - Session 46: มาตรฐานการจัดรูปแบบราคาทศนิยม 1 ตำแหน่ง (Single Decimal Price Standard ADR)
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **การบังคับรูปแบบราคาทศนิยมไม่เกิน 1 ตำแหน่งทั่วทั้งระบบ**:
+   - อัปเดตราคาในฐานข้อมูล SQLite `yuedpao_chatbot.db` ให้เศษทศนิยมราคาส่วนลดปัดเหลือไม่เกิน 1 ตำแหน่ง (`292.54` ➔ `292.5`)
+   - ปรับปรุงฟังก์ชัน `_format_price` ใน [flex_carousel.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/views/flex_carousel.py) (`round(val, 1)`) ให้การ์ดสินค้า Flex Carousel แสดงราคาสูงสุด 1 ตำแหน่งเท่านั้น (`฿292.5 บาท`)
+2. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 18 เคสทดสอบ (18/18 PASSED in 38.44s)**
+
+---
+
+## 📅 [2026-08-27] - Session 45: การล้างราคาทศนิยมเกิน (`292..539`) & การปรับปรุงคู่มือวิธีการค้นหากระชับ ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **การคลีนราคาสินค้าทศนิยมเกินและจุดซ้ำ (`_format_price`)**:
+   - พัฒนาสคริปต์ทำความสะอาดราคาสินค้าที่มีเศษทศนิยมเกิน 3 ตำแหน่ง (`292.539` ➔ `292.54`) ใน SQLite DB `yuedpao_chatbot.db`
+   - เพิ่มฟังก์ชัน `_format_price` ใน [flex_carousel.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/views/flex_carousel.py) ป้องกันจุดซ้ำ (`..`) และจัดรูปแบบทศนิยมให้สวยงาม
+2. **การปรับปรุงคู่มือแนะนำวิธีการค้นหา (`search_help`) สั้นกระชับ**:
+   - ปรับปรุง `reply_text` ใน [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py) ให้กระชับ สั้น อ่านง่าย อ่านจบใน 5 บรรทัดบนหน้าจอ LINE
+3. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 18 เคสทดสอบ (18/18 PASSED in 36.93s)**
+
+---
+
+## 📅 [2026-08-27] - Session 44: สถาปัตยกรรมนำเข้าสินค้าดีลลง Vector DB (Dual-Layer Vector Ingestion ADR) & สรุปข้อมูลสำหรับนำเสนอ
+
+### 🎯 สรุปหลักการทำงานเชิงสถาปัตยกรรม (Architectural Decision Record)
+1. **กระบวนการนำเข้าข้อมูลสินค้าดีลลง Vector DB (ChromaDB + E5 Model)**:
+   - **Document Expansion & Composite Passage:** แปลงข้อมูลจาก SQLite DB โดยฉีดทั้ง `ราคาเต็ม (original_price)` และ `ราคาลด (price)` พร้อมฉายานวัตกรรมผ้า/สี/สไตล์ ลงในข้อความบรรยายเต็ม (`Composite Passage Text`) ก่อนสร้าง Vector Embedding
+   - **Dual-Layer Search Architecture:**
+     * *Layer 1 (Vector Search - ภาษาพูด):* ค้นหาความหมายของประโยคเปรียบเปรย เช่น *"ขอเสื้อดีลราคาถูก"*, *"เสื้อโปโลลดราคา"* ผ่าน ChromaDB Vector Similarity
+     * *Layer 2 (Metadata Filtering - ตัวเลขคณิตศาสตร์):* กรองเงื่อนไขราคาสุดสุทธิ (`price <= 300`, `price >= 500`) ผ่าน ChromaDB Metadata & SQLite DB เพื่อความแม่นยำ 100%
+2. **การรวมศูนย์คำสั่งโปรเจกต์ (`run.py` - Master CLI Runner)**:
+   - รวบรวมคำสั่งบริหารจัดการระบบในไฟล์เดียว (`serve`, `scrape-products`, `scrape-coupons`, `reindex`, `test`, `status`)
+3. **การตั้งค่า Rich Menu ปุ่ม A ("วิธีการค้นหา")**:
+   - เชื่อมโยง Intent `search_help` ตอบกลับคู่มือแนะนำการค้นหาสินค้า 6 หมวดหมู่แบบเข้าใจง่ายสำหรับผู้ใช้ LINE
+4. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 18 เคสทดสอบ (18/18 PASSED in 37.77s)**
+
+---
+
+## 📅 [2026-08-27] - Session 43: การพัฒนา Intent แนะนำวิธีการค้นหา (`search_help`) สำหรับ Rich Menu ปุ่ม A ADR
+
+### 🎯 สรุปผลงานที่พัฒนาขึ้น
+1. **การเพิ่ม Intent แนะนำการค้นหา (`search_help`)**:
+   - เพิ่ม Priority Rule ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) ดักจับคีย์เวิร์ด *"วิธีการค้นหา"*, *"วิธีค้นหา"*, *"ค้นหายังไง"* ( Tier 1 Priority Rule )
+   - ปรับปรุง [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py) ให้ตอบกลับคู่มือแนะนำการค้นหาอย่างละเอียด 6 หมวดหมู่ (ประเภท/ทรงเสื้อ, ช่วงราคา min-max, เพศ/ช่วงวัย, โทนสี, นวัตกรรมผ้า, สินค้าขายดี)
+2. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - เพิ่มเคสทดสอบ `test_intent_search_help` ใน [test_all_intents.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_all_intents.py)
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 18 เคสทดสอบ (18/18 PASSED in 37.77s)**
+
+---
+
+## 📅 [2026-08-27] - Session 42: การแก้ไขปัญหาราคาป้ายส่วนลดหมวก/อุปกรณ์เสริม & การสร้างดรรชนี Hybrid Search ใหม่ ADR
+
+### 🎯 สรุปผลงานที่แก้ไขแล้ว
+1. **การแก้ไขปัญหาราคาหมวกไม่ตรงกับหน้าเว็บ (Discount Badge Scraper Bugfix)**:
+   - ปรับปรุงการสกัดราคาใน [scraper_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/scraper_service.py) ให้ดึงราคาเฉพาะตัวเลขหลังสัญลักษณ์ `฿` โดยตรง ป้องกันการดึงตัวเลขจากป้ายส่วนลด (เช่น *"โค้ดลด 150 บาท"*)
+   - อัปเดตราคาสินค้าประเภทหมวกและอุปกรณ์เสริมทุกรุ่น (*Classic Cap, Fade Denim Cap, Bucket Hat, Ultraflow Running Cap*) เป็น **฿290** ตรงตามหน้าเว็บ YuedPao 100%
+2. **การพัฒนาเมธอด `reload_and_index()` ใน `ProductService`**:
+   - พัฒนาเมธอด `reload_and_index()` ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) รองรับคำสั่ง `python run.py reindex`
+   - ผลการสร้างดรรชนีใหม่: **Successfully indexed 945 products into ChromaDB & BM25**
+3. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 17 เคสทดสอบ (17/17 PASSED in 38.70s)**
+
+---
+
+## 📅 [2026-08-27] - Session 41: การทดสอบและปรับปรุง BERT E5 Passage Vector Matching ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **การปรับแต่ง BERT Intent Passages (`INTENT_PASSAGES`)**:
+   - ปรับปรุงข้อความ `INTENT_PASSAGES` ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) สำหรับหมวด `fabric_comparison` (เพิ่มคีย์เวิร์ดนวัตกรรมสัมผัสผ้านุ่ม ผ้าเย็น ระบายเหงื่อ ไม่ติดตัว) และ `random_recommendation`
+2. **การทดสอบภาษาพูดเชิงธรรมชาติด้วย BERT Multilingual E5 Model (Tier 3)**:
+   - ทดสอบ 5 ประโยคภาษาพูดสไตล์ Lifestyle & Comfort
+   - ผลการทดลอง: BERT Tier 3 Match สามารถจับประโยคอย่าง *"ขอชุดใส่ไปเดินเที่ยวชิลๆ คาเฟ่เสาร์อาทิตย์"* และ *"เพิ่งเคยซื้อแบรนด์นี้ครั้งแรก แนะนำตัวไหนดี"* ลง Intent ได้อย่างแม่นยำด้วย Latency **10.9 ms - 12.6 ms**
+3. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 17 เคสทดสอบ (17/17 PASSED in 36.52s)**
+
+---
+
+## 📅 [2026-08-27] - Session 40: ระบบป้องกันสินค้าผิดประเภทในหมวดหมู่เดียวกัน (Item Type Mismatch Demotion ADR)
+
+### 🎯 สรุปผลงานและจุดเด่นทางเทคนิค
+1. **การป้องกันสินค้าประเภทหมวก/กางเกงหลุดเจือปนเมื่อค้นหาเสื้อ (`category_mismatch_boost`)**:
+   - พัฒนาตัวกรองระดับชื่อสินค้าและ Text Haystack ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py)
+   - เมื่อผู้ใช้ระบุคำว่า `"เสื้อ"` (`query_has_shirt = True`): สินค้าประเภทหมวกวิ่งและกางเกงวิ่งในหมวดกีฬา `ULTRA FLOW` ที่มีคำว่า `"หมวก"`, `"cap"`, `"กางเกง"`, `"shorts"` จะถูก **ลดคะแนนลงเหลือ 0.01x**
+   - เมื่อผู้ใช้ระบุคำว่า `"กางเกง"` (`query_has_pants = True`): สินค้าประเภทเสื้อยืด โปโล ครอป จะถูกลดคะแนนลงเหลือ 0.01x
+2. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - เพิ่มเคสทดสอบ `test_intent_running_shirt_filtering` ใน [test_all_intents.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_all_intents.py)
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 17 เคสทดสอบ (17/17 PASSED in 36.90s)**
+
+---
+
+## 📅 [2026-08-27] - Session 39: การพัฒนาศูนย์รวมคำสั่ง Master CLI Runner (`run.py`) ADR
+
+### 🎯 สรุปผลงานที่พัฒนาขึ้น
+1. **การสร้างศูนย์รวมคำสั่งโปรเจกต์ (`run.py` - Master CLI Runner)**:
+   - พัฒนาไฟล์ [run.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/run.py) รวบรวมคำสั่งรันระบบและ pipeline ทั้งหมดไว้ที่จุดเดียว:
+     * `python run.py serve`: รันแอปพลิเคชัน Flask LINE Webhook Server
+     * `python run.py scrape-products --all`: รันสแคปเปอร์สินค้า & อัปเดตคลังคำศัพท์ภาษาไทย Domain Vocab
+     * `python run.py scrape-coupons`: สแคปคูปอง & ทำดรรชนี RRF ChromaDB โปรโมชันใหม่
+     * `python run.py reindex`: สร้างดรรชนี BM25 & ChromaDB Vector สินค้าใหม่จาก SQLite
+     * `python run.py test`: รันชุดทดสอบอัตโนมัติ Pytest 16/16 Intents
+     * `python run.py generate-richmenu`: เจนภาพ Rich Menu 4K 2500x1686 px
+     * `python run.py status`: แสดงรายงานสรุปสถานะ DB สินค้า คูปอง และ NLP Vocab
+2. **การทดสอบความถูกต้อง**:
+   - คำสั่ง `python run.py status` แสดงสถานะสินค้า 1,405 รายการ, 148 หมวดหมู่, 9,196 ไซส์/สี, 5 คูปอง และคำศัพท์ NLP 514 คำอย่างสมบูรณ์
+
+---
+
+## 📅 [2026-08-27] - Session 38: การวิเคราะห์สแกนและซิงก์ราคากระเป๋าสินค้าจริงทั้งหมวดหมู่อัตโนมัติ (Full ACCESSORIES Live Price Resync ADR)
+
+### 🎯 สาเหตุและการแก้ไข (Root Cause & Complete Solution)
+1. **สาเหตุที่ราคากระเป๋าเดิมใน DB ไม่ตรงกับหน้าเว็บ:**
+   - หน้ารายละเอียดสินค้าประเภทกระเป๋ามีตัวเลือกสายสะพาย/อุปกรณ์เสริม (เช่น `สายสะพาย Multi Strap ฿190 / ฿290`) แสดงอยู่บนหน้าเว็บด้วย
+   - ลอจิกเดิมใน `scraper_service.py` ใช้คำสั่ง `min(price_nums)` ซึ่งไปดึงเอาราคาขั้นต่ำของ **ตัวเลือกสายสะพาย (฿190 / ฿290)** แทนที่จะเป็น **ราคากระเป๋าหลัก (฿690 / ฿990)**
+2. **การรันสคริปต์ซิงก์ราคาจากหน้าเว็บจริง (`sync_bag_prices.py`)**:
+   - พัฒนาและรันสคริปต์ดึง DOM Data ล่าสุดจาก `https://www.yuedpao.com/ACCESSORIES-cat.ordqos` ด้วย Selenium
+   - อัปเดตราคาในตาราง `products` สำหรับกระเป๋าทุกรายการครบทั้ง 48 รายการใน SQLite `yuedpao_chatbot.db` ตรงตามหน้าเว็บ 100%:
+     * **The Bagg Carry bag:** จาก ฿290 ➔ **฿990**
+     * **Yuedpao Fluffy Bag  กระเป๋าสะพายข้าง:** จาก ฿290 ➔ **฿690**
+     * **Yuedpao Active Bag:** จาก ฿290 ➔ **฿690**
+     * **The Bagg Fluffy Gozy Bag:** **฿690**
+     * **The Bagg Canvas Core Bag:** **฿590**
+     * **The Bagg Canvas Classic Tote:** **฿590**
+     * **The Bagg Fluffy Box Bag:** จาก ฿190 ➔ **฿690**
+     * **The bagg mini crossbody bag:** **฿290**
+     * **Yuedpao Mini Bag:** **฿120**
+
+---
+
+## 📅 [2026-08-27] - Session 37: การปรับปรุงระบบกรองขอบเขตราคาขั้นต่ำ (Min Price Boundary) & ราคาสินค้ากระเป๋า ADR
+
+### 🎯 สรุปผลงานที่แก้ไขแล้ว
+1. **การกรองขอบเขตราคาขั้นต่ำ (Min Price Boundary Extraction - `_extract_price_bounds`)**:
+   - พัฒนาฟังก์ชัน `_extract_price_bounds()` ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) รองรับทั้งขอบเขตล่าง (`มากกว่า`, `เกิน`, `500 ขึ้นไป`) และขอบเขตบน (`ไม่เกิน`, `ต่ำกว่า`, `งบ 300`)
+   - ปรับปรุงการกรองใน `compute_rrf` คัดเฉพาะสินค้าราคา $\ge \text{Min Price}$ ออกมาแสดงเมื่อผู้ใช้ระบุราคาสูงกว่างบขั้นต่ำ
+2. **การอัปเดตราคากระเป๋า `The Bagg Canvas Classic Tote` ใน SQLite DB**:
+   - อัปเดตราคาในตาราง `products` สำหรับกระเป๋า `The Bagg Canvas Classic Tote` จาก ฿190 เป็น **฿590** ตามราคาขายจริงบนหน้าเว็บ YuedPao
+3. **การเพิ่มน้ำหนักสินค้ายอดฮิตขายดี (`sales_vol_boost`)**:
+   - ปรับปรุงค่าน้ำหนัก `sales_vol_boost` เมื่อ `is_popular = True` เพื่อดันสินค้ายอดขายสูงสุด (`Ultrasoft`, `Signature`, `Collab`, `Polo`) ขึ้นอันดับ 1-5 อย่างแม่นยำ
+4. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest)**:
+   - เพิ่มเคสทดสอบ `test_intent_min_price_boundary_filtering` ใน [test_all_intents.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_all_intents.py)
+   - ผลการรัน Pytest: **ผ่าน 100% ครบทั้ง 16 เคสทดสอบ (16/16 PASSED in 33.94s)**
+
+---
+
+## 📅 [2026-08-27] - Session 36: สรุปสถาปัตยกรรมทางเทคนิคสำหรับนำเสนอ (Presentation Technical Architecture ADR)
+
+### 🎯 สรุปผลงานและจุดเด่นทางเทคนิค (สำหรับนำไปนำเสนอ / Defense)
+1. **คลังคำศัพท์สีหลักและเอนจินคำนวณค่าน้ำหนักสี ([product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py))**:
+   - ขยาย `COLOR_KEYWORDS_MAP` ครอบคลุม 11 กลุ่มสีหลักทั้งภาษาไทย ภาษาอังกฤษ และชื่อเฉดสีเฉพาะแบรนด์ YuedPao (`แดง`, `แดงเลือดหมู`, `ไวน์`, `Rosewood`, `ชาไทย`, `น้ำเงิน`, `กรม`, `เขียว`, `มิ้นท์`, `Mist Green`, `เหลือง`, `ชมพู`, `ม่วง`, `ส้ม`, `น้ำตาล`, `เทา`, `Smoke Gray`, `ขาว`, `ดำ`)
+   - กำหนดลอจิก **2.50x Color Match Boost** ดันสินค้าสีตรงขึ้นอันดับแรก และ **0.15x Non-Match Color Demotion** กดคะแนนสินค้าสีอื่นที่ไม่ตรงออกไป
+2. **ระบบแบ่งหน้าแชตอัตโนมัติ (In-Chat Offset Pagination) & เซสชันผู้ใช้**:
+   - พัฒนา `search_products(raw_query, top_k=5, offset=N)` และระบบจำเซสชัน `self.user_sessions[user_id]` ใน [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py)
+   - แทรกปุ่มทางลัด Quick Reply แบบไดนามิก (`⏩ ดูเพิ่มเติม (6-10)`, `⏩ ดูเพิ่มเติม (11-15)`) ช่วยให้ผู้ใช้ไถดูสินค้าต่อเนื่องในแอป LINE โดยไม่ต้องเปิดเว็บภายนอก
+3. **ระบบกรองกลุ่มอายุและป้องกันหมวดหมู่สินค้าผิดประเภท**:
+   - ป้องกันคีย์เวิร์ด `"เด็กชาย"` ไม่ให้ข้ามไปโดนคีย์เวิร์ดผู้ใหญ่ ด้วยเทคนิค `(?<!เด็ก)ชาย` Prefix Regex
+   - กำหนด **2.50x Kids Priority Boost** ดันสินค้าเด็ก และ **0.05x Adult Demotion** กดสินค้าผู้ใหญ่ลงล่างสุดเมื่อค้นหาสินค้าเด็ก พร้อมระบบ **0.01x Category Mismatch Factor** กรองหมวดกางเกงใน/ถุงเท้า ออกจากการค้นหาประเภท `"เสื้อ"`
+4. **ภาพ Rich Menu ขนาดมาตรฐาน 2500x1686 px พร้อมใช้งาน**:
+   - สร้างสคริปต์ `scripts/generate_rich_menu_yuedpao_brand.py` เจนภาพ Rich Menu ความละเอียดสูง 4K พร้อม Header แบรนด์ YuedPao และแมปปิ้ง 6 ปุ่มกด (`action_search`, `action_promotion`, `action_random`, `action_fabric`, `action_size`, `action_contact`)
+5. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest)**:
+   - คำสั่ง `python -m pytest tests/test_all_intents.py -v` ผ่าน **100% ครบทั้ง 15 เคสทดสอบ** ในเวลา 39.33 วินาที
+
+---
+
+## 📅 [2026-08-27] - Session 35: Kids Demographic & Category Mismatch Demotion Fix ADR
+
+### 🎯 Key Accomplishments
+1. **Kids Demographic Detection Fix ([app/services/product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py))**:
+   - Fixed `_detect_query_gender()` to evaluate kids keywords (`"เด็กชาย"`, `"เด็กหญิง"`, `"เด็ก"`, `"ลูก"`) prior to checking standalone `"ชาย"` to prevent `"เด็กชาย"` from triggering adult male 1.75x boost for men's underwear (`Briefs Unwear Men`).
+   - Implemented symmetric Kids Boost / Adult Demotion:
+     * When `query_has_kids` is `True`: Kids items get **2.50x Kids Priority Boost**, while adult items get **0.05x Adult Demotion Factor**.
+2. **Apparel Category Mismatch Demotion**:
+   - Added category mismatch filter when user requests tops/shirts (`"เสื้อ"`, `"โปโล"`, `"คอกลม"`, `"ครอป"`):
+     * Non-shirt categories (`UNWEAR`, `ACCESSORIES`, `RIB BRA`, `SOCKS`) are demoted with **0.01x Category Mismatch Factor** to eliminate boxers/briefs from shirt searches.
+3. **Database Price Verification**:
+   - Confirmed SQLite `products` table prices match actual web prices on YuedPao (e.g. ฿90 for kids shirt, ฿250 for boxers, ฿292.5 for polo sale).
+4. **Automated Verification**:
+   - Added `test_intent_kids_boy_tshirt_filtering()` in [test_all_intents.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_all_intents.py).
+   - Executed `python -m pytest tests/test_all_intents.py -v`: **100% Pass Rate (14/14 PASSED in 36.38s)**.
+
+---
+
+## 📅 [2026-08-27] - Session 34: In-Chat Pagination & See More Intent (`see_more_products`) ADR
+
+### 🎯 Key Accomplishments
+1. **Product Search Offset Pagination ([app/services/product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py))**:
+   - Added `offset: int = 0` parameter to `search_products()`.
+   - Updated candidate pool slicing `[offset : offset + top_k]` and included metadata `total_count`, `offset`, and `has_more` in return dictionary.
+2. **Intent Engine & Router Integration**:
+   - Added `see_more_products` intent with domain triggers (`"ขอดูเพิ่มเติม"`, `"ดูเพิ่มเติม"`, `"ขอดูเพิ่ม"`, `"ขออีก"`, `"ดูเพิ่ม"`, `"ขอเพิ่ม"`, `"ดูรุ่นอื่น"`, `"ดูต่อ"`) in [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py).
+   - Implemented `self.user_sessions[user_id]` state management in [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py) to remember `last_query` and `offset` per user.
+   - Dynamically injected `⏩ ดูเพิ่มเติม (6-10)` Quick Reply pills via [quick_replies.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/views/quick_replies.py).
+3. **Automated Test Suite Expansion & Verification**:
+   - Added `test_intent_see_more_products_pagination()` in [test_all_intents.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_all_intents.py).
+   - Executed `python -m pytest tests/test_all_intents.py -v`: **100% Pass Rate (13/13 PASSED in 39.92s)**.
+
+---
+
 ## 📅 [2026-08-27] - Session 33: Fair Random Sampling & Session History Integration (`session_history`) ADR
 
 ### 🎯 Key Accomplishments

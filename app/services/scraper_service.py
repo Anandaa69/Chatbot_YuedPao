@@ -368,6 +368,11 @@ class YuedpaoScraperService:
                     price_text = p_fallback.get_text(strip=True)
             
             baht_match = re.search(r"฿\s*([\d,.]+)", price_text)
+            if not baht_match:
+                p_tag = soup.find(lambda tag: tag.name in ["p", "div", "span"] and "฿" in tag.text and len(tag.text) < 40)
+                if p_tag:
+                    baht_match = re.search(r"฿\s*([\d,.]+)", p_tag.get_text())
+
             if baht_match:
                 clean_num_str = baht_match.group(1).replace(",", "")
                 try:
@@ -375,9 +380,7 @@ class YuedpaoScraperService:
                 except ValueError:
                     price = 0
             else:
-                price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
-                valid_nums = [n for n in price_nums if n >= 50]
-                price = min(valid_nums) if valid_nums else (min(price_nums) if price_nums else 0)
+                price = 0
             
             # 3. Description (USP)
             desc_text = ""
@@ -503,8 +506,14 @@ class YuedpaoScraperService:
                 if p_fallback:
                     price_text = p_fallback.get_text(strip=True)
             
-            # Decimal Price Bugfix: match digits and float dots
+            # Price Extraction: Search strictly for ฿ followed by numbers
             price_match = re.search(r"฿\s*([\d,.]+)", price_text)
+            if not price_match:
+                # Search anywhere inside item for ฿ price tag
+                price_tag = item.find(lambda tag: tag.name in ["p", "div", "span"] and "฿" in tag.text and len(tag.text) < 40)
+                if price_tag:
+                    price_match = re.search(r"฿\s*([\d,.]+)", price_tag.get_text())
+
             if price_match:
                 clean_num_str = price_match.group(1).replace(",", "")
                 try:
@@ -512,8 +521,7 @@ class YuedpaoScraperService:
                 except ValueError:
                     price = 0
             else:
-                price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
-                price = min(price_nums) if price_nums else 0
+                price = 0
             
             # Sales Volume Extraction
             sales_volume = 0

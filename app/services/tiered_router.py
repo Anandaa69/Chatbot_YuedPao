@@ -19,6 +19,7 @@ class TieredRouter:
         self.intent_service = IntentService(data_dir=data_dir)
         self.product_service = ProductService.get_instance()
         self.promotion_service = PromotionService.get_instance()
+        self.user_sessions: Dict[str, Dict[str, Any]] = {}
 
     def get_coupons_from_db(self) -> List[Dict[str, Any]]:
         """Fetch active coupons from SQLite 'coupons' table."""
@@ -37,7 +38,7 @@ class TieredRouter:
             print(f"⚠️ Error querying coupons table: {e}")
             return []
 
-    def route_query(self, raw_query: str, session_history: Optional[List[str]] = None) -> Dict[str, Any]:
+    def route_query(self, raw_query: str, user_id: str = "default_user", session_history: Optional[List[str]] = None, override_offset: Optional[int] = None) -> Dict[str, Any]:
         """
         Route user inquiry to appropriate service and build response payload.
         """
@@ -49,20 +50,63 @@ class TieredRouter:
 
         reply_text = ""
         flex_payload = None
+        has_more = False
+        next_offset_val = 5
         
         if intent == "product_search":
-            search_res = self.product_service.search_products(raw_query, top_k=5, return_dict=True)
+            search_res = self.product_service.search_products(raw_query, top_k=5, offset=0, return_dict=True)
             products = search_res["products"]
             fallback_msg = search_res.get("fallback_message")
+            has_more = search_res.get("has_more", False) and 5 < 20
+            next_offset_val = 5
+            
+            # Store search context in user session
+            self.user_sessions[user_id] = {
+                "last_query": raw_query,
+                "offset": 0
+            }
+
             if products:
                 if fallback_msg:
                     reply_text = fallback_msg
                 else:
-                    reply_text = f"พบสินค้าแบรนด์ยืดเปล่า {len(products)} รายการที่ตรงกับความต้องการของคุณครับ:"
+                    reply_text = f"พบสินค้าแบรนด์ยืดเปล่า {search_res.get('total_count', len(products))} รายการที่ตรงกับความต้องการของคุณ (อันดับ 1–{len(products)}) ครับ:"
                 flex_payload = build_product_flex_carousel(products)
             else:
                 reply_text = "ขออภัยครับ ไม่พบสินค้าตรงกับเงื่อนไข ลองปรับงบประมาณหรือค้นหาด้วยสีอื่นดูนะครับ"
+
+        elif intent == "see_more_products":
+            user_sess = self.user_sessions.get(user_id, {})
+            last_query = user_sess.get("last_query")
+            
+            if not last_query:
+                products = self.product_service.get_fair_top5_recommendations(session_history=session_history)
+                reply_text = "สุ่มแนะนำสินค้าฮิต ยืดเปล่า ประจำสัปดาห์ครับ:"
+                flex_payload = build_product_flex_carousel(products)
+                has_more = False
+            else:
+                current_offset = override_offset if override_offset is not None else user_sess.get("offset", 0)
+                next_offset_target = current_offset + 5
                 
+                if next_offset_target >= 20:
+                    reply_text = "แสดงสินค้าตรงตามเงื่อนไขครบ 20 รายการแล้วครับ สามารถลองปรับงบประมาณหรือค้นหาด้วยสีอื่นเพิ่มเติมได้เลยครับ"
+                    products = []
+                    flex_payload = None
+                    has_more = False
+                else:
+                    search_res = self.product_service.search_products(last_query, top_k=5, offset=next_offset_target, return_dict=True)
+                    products = search_res["products"]
+                    has_more = search_res.get("has_more", False) and (next_offset_target + 5 < 20)
+                    next_offset_val = next_offset_target + 5
+                    
+                    if products:
+                        user_sess["offset"] = next_offset_target
+                        reply_text = f"แสดงผลการค้นหาเพิ่มเติมของ '{last_query}' (อันดับที่ {next_offset_target+1}–{next_offset_target+len(products)}) ครับ:"
+                        flex_payload = build_product_flex_carousel(products)
+                    else:
+                        reply_text = f"แสดงสินค้าตรงตามเงื่อนไขของ '{last_query}' ครบทั้งหมดเรียบร้อยแล้วครับ"
+                        has_more = False
+
         elif intent == "coupon_ticket":
             coupons = self.promotion_service.get_all_coupons() or self.get_coupons_from_db()
             if coupons:
@@ -109,13 +153,24 @@ class TieredRouter:
             reply_text = "ตารางไซส์มาตรฐานยืดเปล่า และคำแนะนำการเลือกขนาดเสื้อครับ:"
             flex_payload = build_size_recommendation_flex()
 
+        elif intent == "search_help":
+            reply_text = (
+                "💡 วิธีค้นหาสินค้า YuedPao (พิมพ์ตามสไตล์คุณได้เลยครับ):\n\n"
+                "1️⃣ ชนิดสินค้า & ทรง: \"เสื้อยืดคอกลม\", \"โปโล\", \"Oversize\", \"กางเกงยีนส์\", \"กระเป๋า\"\n"
+                "2️⃣ งบ & ราคา: \"ไม่เกิน 300\", \"ราคามากกว่า 500\", \"งบ 500\"\n"
+                "3️⃣ เพศ & ช่วงวัย: \"เสื้อผู้หญิง\", \"เสื้อผู้ชาย\", \"เสื้อเด็กชาย\"\n"
+                "4️⃣ สี & สไตล์: \"สีชาไทย\", \"สีแดง\", \"เสื้อใส่วิ่ง\", \"ผ้านุ่มไม่ต้องรีด\"\n"
+                "5️⃣ ตัวฮิต & แนะนำ: \"ขอสินค้าขายดี\", \"สุ่มแนะนำ\"\n\n"
+                "ลองพิมพ์ประโยคค้นหาเข้ามาได้เลยครับ! 🛍️"
+            )
+
         else: # Default fallback
             products = self.product_service.get_fair_top5_recommendations(session_history=session_history)
             reply_text = "ยินดีต้อนรับสู่ YuedPao Chatbot! สามารถเลือกเมนูด้านล่างหรือสอบถามสินค้าได้เลยครับ:"
             flex_payload = build_product_flex_carousel(products)
 
-        # 3. Build Quick Reply options
-        quick_replies = build_quick_reply_items(intent)
+        # 3. Build Quick Reply options with pagination support
+        quick_replies = build_quick_reply_items(intent, has_more=has_more, next_offset=next_offset_val)
 
         # Collect display items for debug log
         rendered_items = []
@@ -127,7 +182,7 @@ class TieredRouter:
             rendered_items = [f"Product: {p.get('name', 'N/A')} | Cat: {p.get('category', 'N/A')} | Gender: {p.get('gender', 'unisex')} | Price: ฿{p.get('price', 0)}" for p in products]
 
         card_count = len(flex_payload.get("contents", [])) if flex_payload and isinstance(flex_payload, dict) and "contents" in flex_payload else 0
-        print(f"🚀 [Tiered Router] Intent: '{intent}' ({tier_used}) ──► Flex Cards: {card_count} | QuickReplies: {len(quick_replies.get('items', [])) if quick_replies else 0}")
+        print(f"🚀 [Tiered Router] User: '{user_id}' | Intent: '{intent}' ({tier_used}) ──► Flex Cards: {card_count} | HasMore: {has_more} | QuickReplies: {len(quick_replies.get('items', [])) if quick_replies else 0}")
         if rendered_items:
             print("   📦 [Items Rendered to User]:")
             for idx, item_str in enumerate(rendered_items[:6], 1):

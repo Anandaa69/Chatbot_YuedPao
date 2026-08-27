@@ -98,7 +98,8 @@ def callback():
             for event in events:
                 if event.get("type") == "message" and event.get("message", {}).get("type") == "text":
                     user_text = event["message"]["text"]
-                    res = router.route_query(user_text)
+                    user_id = event.get("source", {}).get("userId", "default_user")
+                    res = router.route_query(user_text, user_id=user_id)
                     results.append(res)
             return jsonify({"status": "success", "mock_results": results}), 200
         except Exception as e:
@@ -124,9 +125,10 @@ if handler:
     def handle_message_event(event):
         user_text = event.message.text
         reply_token = event.reply_token
+        user_id = getattr(event.source, "user_id", "default_user") if hasattr(event, "source") else "default_user"
         
         # Route query through 4-Tier Router
-        res = router.route_query(user_text)
+        res = router.route_query(user_text, user_id=user_id)
         line_messages = convert_flex_and_quick_replies(res)
         
         if configuration and reply_token:
@@ -144,10 +146,11 @@ if handler:
     def handle_postback_event(event):
         postback_data = event.postback.data
         reply_token = event.reply_token
+        user_id = getattr(event.source, "user_id", "default_user") if hasattr(event, "source") else "default_user"
         
         # Map Rich Menu postback action IDs to Thai query text
         query_text = get_rich_menu_postback_query(postback_data)
-        res = router.route_query(query_text)
+        res = router.route_query(query_text, user_id=user_id)
         line_messages = convert_flex_and_quick_replies(res)
         
         if configuration and reply_token:

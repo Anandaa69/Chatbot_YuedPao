@@ -73,11 +73,12 @@ class IntentService:
         # Cache Passages Embedding for Tier 3 Fallback
         self.INTENT_PASSAGES = {
             "product_search": "passage: ซื้อเสื้อ หาเสื้อ ขอดูเสื้อ อยากเห็นเสื้อ สั่งซื้อเสื้อผ้า เสื้อยืด กางเกง กระเป๋า ยีนส์ เสื้อโปโล เสื้อเชิ้ต ราคาสินค้า สี ไซส์ ทรงเสื้อ มีงบ มีราคา ไม่เกิน",
-            "size_recommendation": "passage: สอบถามไซส์ แนะนำไซส์เสื้อ ขนาดเสื้อ รอบอก สัดส่วนความสูงและน้ำหนัก ไซส์ไหนดี ใส่ไซส์อะไร เหมาะกับไซส์อะไร",
-            "fabric_comparison": "passage: สอบถามเนื้อผ้า เปรียบเทียบคุณสมบัติผ้า ผ้าต่างกันยังไง ซักแล้วยับไหม ผ้านุ่ม ระบายอากาศ ดีกว่ายังไง คุณสมบัติของผ้า",
+            "see_more_products": "passage: ขอดูเพิ่มเติม ดูเพิ่มเติม ขอดูเพิ่ม ขออีก ดูเพิ่ม ขอเพิ่ม ดูรุ่นอื่น ดูต่อ ขอเพิ่มอีก ขอดูอีก ถัดไป หน้าถัดไป",
+            "size_recommendation": "passage: สอบถามไซส์ แนะนำไซส์เสื้อ ขนาดเสื้อ รอบอก สัดส่วนความสูงและน้ำหนัก ไซส์ไหนดี ใส่ไซส์อะไร เหมาะกับไซส์อะไร ส่วนสูง น้ำหนัก อก",
+            "fabric_comparison": "passage: สอบถามเนื้อผ้า เปรียบเทียบคุณสมบัติผ้า ผ้าต่างกันยังไง ซักแล้วยับไหม ผ้านุ่ม ระบายอากาศ ดีกว่ายังไง คุณสมบัติของผ้า ระบายเหงื่อ สัมผัสเย็น ไม่ติดตัว ใส่ออกกำลังกาย",
             "coupon_ticket": "passage: คูปองส่วนลด โค้ดส่วนลด บัตรส่วนลด วอเชอร์ voucher code กดคัดลอกโค้ด สิทธิ์ส่วนลด คูปองยืดเปล่า",
             "promotion_deal": "passage: โปรโมชัน ดีลพิเศษ ประจำวัน ประจำเดือน แฟลชเซล flash sale ดีลเด็ด สินค้าลดราคา ส่งฟรี วันนี้ เดือนนี้",
-            "random_recommendation": "passage: สุ่มแนะนำ สุ่มสินค้า สินค้าแนะนำ ลองดูอะไรดี เลือกให้หน่อย ไม่รู้จะซื้ออะไร แนะนำเสื้อ"
+            "random_recommendation": "passage: สุ่มแนะนำ สุ่มสินค้า สินค้าแนะนำ ลองดูอะไรดี เลือกให้หน่อย ไม่รู้จะซื้ออะไร แนะนำเสื้อ แนะนำตัวไหนดี"
         }
         self.intent_classes = list(self.INTENT_PASSAGES.keys())
         self.passage_embeddings = None
@@ -258,6 +259,28 @@ class IntentService:
             return res_dict
 
         # --- Tier 1 Priority Rules ---
+        search_help_triggers = ["วิธีการค้นหา", "วิธีค้นหา", "ค้นหายังไง", "วิธีค้นหาสินค้า", "ค้นหาทำยังไง", "ค้นหาอย่างไร"]
+        if any(sht in raw_lower for sht in search_help_triggers):
+            total_time = (time.perf_counter() - start_t) * 1000.0
+            return _return_with_log({
+                "intent": "search_help",
+                "tier_used": "Tier 1: Priority Rule (Search Help)",
+                "corrected_query": corrected_query,
+                "confidence": 1.0,
+                "latency_ms": total_time
+            })
+
+        see_more_triggers = ["ขอดูเพิ่มเติม", "ดูเพิ่มเติม", "ขอดูเพิ่ม", "ขออีก", "ดูเพิ่ม", "ขอเพิ่ม", "ดูรุ่นอื่น", "ดูต่อ", "ขอเพิ่มอีก", "ขอดูอีก"]
+        if any(smt in raw_lower for smt in see_more_triggers):
+            total_time = (time.perf_counter() - start_t) * 1000.0
+            return _return_with_log({
+                "intent": "see_more_products",
+                "tier_used": "Tier 1: Priority Rule (See More)",
+                "corrected_query": corrected_query,
+                "confidence": 1.0,
+                "latency_ms": total_time
+            })
+
         is_size_fitting = bool(
             re.search(r'(?:สูง|หนัก)\s*\d+', raw_lower) or
             re.search(r'(?:รอบอก|อก)\s*(?:ประมาณ\s*)?\d+.*(?:ใส่|ควร|แนะนำ|ไซส์|อะไร)', raw_lower) or
