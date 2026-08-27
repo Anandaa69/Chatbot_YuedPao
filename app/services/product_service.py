@@ -57,14 +57,17 @@ STYLE_SYNONYMS = {
 }
 
 PERSONA_SYNONYMS = {
-    "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง สาวอวบ ซ่อนหน้าท้อง ซ่อนพุง คนท้อง เท่ เท่ๆ สตรีท วินเทจ คูลๆ ชิคๆ",
+    # Style vibe keywords (เท่ สตรีท วินเทจ คูล) are intentionally EXCLUDED from Oversize here.
+    # They are matched separately via STYLE_VIBE_KEYWORDS_MAP to prevent cross-contamination
+    # into all OVERSIZED-category products (e.g. Babytee Striped) via document expansion.
+    "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง สาวอวบ ซ่อนหน้าท้อง ซ่อนพุง คนท้อง",
     "Kid": "เด็ก เสื้อเด็ก ของขวัญเด็ก เด็กอนุบาล ลายน่ารัก kidซ คิดส์ คิด",
-    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ คอปก เสื้อคอปก เสื้อมีปก ปก ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่ สวย สวยๆ เรียบหรู คัตติ้งเนี๊ยบ",
+    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ คอปก เสื้อคอปก เสื้อมีปก ปก ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่",
     "Crop": "เสื้อครอป น่ารัก น่ารักๆ สาวๆ เที่ยวทะเล คอกลม ทรงสั้นเอว เอวสูง ตัวเล็ก คิ้วท์ๆ หวานๆ สดใส y2k",
     "Running": "ใส่วิ่ง ออกกำลังกาย ระบายอากาศ ระบายความร้อน อากาศไทย ไม่ร้อน รันนิ่ง สปอร์ต เดินป่า ไม่หมองจากเหงื่อ ไม่มีกลิ่นเหงื่อ",
-    "Tie Dye": "มัดย้อม ไทด์ดาย ไทน์ดาย ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม ถ่ายรูป content อาร์ต สตรีท เท่ๆ",
+    "Tie Dye": "มัดย้อม ไทด์ดาย ไทน์ดาย ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม ถ่ายรูป content อาร์ต",
     "Sleeveless": "แขนกุด อากาศร้อน ไม่อึดอัด เสื้อกล้าม โยคะ ยืดหยุ่น",
-    "Running Roulette": "รันนิ่งรูเล็ต รันนิ่ง รูเล็ต เสื้อฟอก วินเทจ เท่ เท่ๆ สตรีท",
+    "Running Roulette": "รันนิ่งรูเล็ต รันนิ่ง รูเล็ต เสื้อฟอก วินเทจ",
     "Babytee": "เบบี้ที เบบี้ทีส์ เสื้อตัวเล็ก เสื้อยืดตัวเล็ก เบบี้ทีมูนิมอล น่ารัก น่ารักๆ คิ้วท์ๆ หวานๆ สดใส y2k",
     "Bag": "กระเป๋า กระเป๋าสะพาย กระเป๋าสะพายข้าง กระเป๋าถือ bagก baggg crossbody carrybag tote",
     "Pants": "กางเกง กางเกงขาสั้น กางเกงขายาว กางเกงยีนส์ ยีนส์ คาร์โก้ cargo short shorts pant pants"
@@ -714,14 +717,30 @@ class ProductService:
                     else:
                         color_boost = 0.15
 
-                # Style Vibe Match Boost (1.35x)
+                # Style Vibe Match Boost (1.35x for match, demote female-only on cool/street vibes)
                 style_vibe_boost = 1.0
                 if requested_vibes:
+                    vibe_matched = False
                     for req_vibe in requested_vibes:
                         syn_list = STYLE_VIBE_KEYWORDS_MAP.get(req_vibe, [req_vibe])
                         if any(syn in item_haystack for syn in syn_list):
                             style_vibe_boost = 1.35
+                            vibe_matched = True
                             break
+                    # For "cool" / "street" vibes: strongly boost true cool-category products
+                    # and demote female-only items (Babytee, Crop) that only match due to description text
+                    if "cool" in requested_vibes or "street" in requested_vibes:
+                        item_style_lower = meta.get("style", "").lower()
+                        item_name_lower = meta.get("name", "").lower()
+                        is_true_cool = any(kw in item_style_lower or kw in item_name_lower for kw in
+                                           ["oversize", "tie dye", "running roulette", "roulette", "jeans", "cargo", "screen", "collab"])
+                        is_female_only_style = (item_gender == "female" and
+                                                any(kw in item_style_lower or kw in item_name_lower for kw in
+                                                    ["babytee", "crop", "baby tee"]))
+                        if is_true_cool:
+                            style_vibe_boost = max(style_vibe_boost, 2.00)
+                        elif is_female_only_style and not requested_gender:
+                            style_vibe_boost = min(style_vibe_boost, 0.30)
 
                 # Gender Preference Match Boost (1.75x for specific gender products)
                 gender_match_boost = 1.0

@@ -9,17 +9,30 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
-## 📅 [2026-08-28] - Session 52: การแก้ไขการค้นหาสินค้าตามรูปกราฟิก (Dugong/Icons of Hope Description Enrichment) & Exact Numeric Spec Boost ADR
+## 📅 [2026-08-28] - Session 53: Style Vibe Cross-Contamination Fix & RRF Loop Performance Optimization ADR
 
 ### 🎯 สรุปผลงานที่ปรับปรุง
-1. **การเติมเต็มคำอธิบายสินค้าเสื้อลายพะยูน (`Icons of Hope UNDP Collection`)**:
-   * สแกนตาราง `products` พบว่าคำว่า `"พะยูน"` ไม่อยู่ในคอลัมน์ `description` ของ DB เดิม (โดน Scraper ตัดย่อข้อความ)
-   * ทำการอัปเดต DB และรัน **Document Expansion 2.0 (Rule 6)** เติมคีย์เวิร์ด `ลายพะยูน อนุรักษ์พะยูน สัตว์ทะเล YUEDPAO X UNDP` ลงใน `products` และ Index เข้า ChromaDB VectorDB / BM25 
-   * ผลลัพธ์: ค้นหาประโยค `"มีเสื้อลายพะยูนมั้ย"` ดึงเสื้อรุ่น **`Oversize Screen ICONS OF HOPE YUEDPAO X UNDP`** ขึ้นอันดับ 1 ทันที
-2. **ระบบการให้โบนัสตัวเลขสเปกเป๊ะ (`spec_boost = 3.00x`)**:
-   * เพิ่มลอจิก `spec_boost` ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) เมื่อผู้ใช้ระบุสเปกสัดส่วนผสมผ้าเป๊ะๆ เช่น `cotton 60%` สินค้าที่มีตัวเลขตรงตามโจทย์จะได้รับคะแนน **3.00x** เบียดขึ้นอันดับ 1-4 ทันที
-3. **การทดสอบความถูกต้องอัตโนมัติ (Automated Pytest Standard)**:
-   * รันคำสั่ง `python run.py test` ผ่าน **100% ครบทั้ง 19 เคสทดสอบ (19/19 PASSED in 36.34s)**
+
+1. **Bug: PERSONA_SYNONYMS Cross-Contamination ใน Document Expansion**:
+   - **Root Cause:** `PERSONA_SYNONYMS["Oversize"]` มีคำ `"เท่ เท่ๆ สตรีท วินเทจ คูลๆ ชิคๆ"` รวมอยู่ เมื่อ `_load_products_from_db()` ทำ Document Expansion → ทุกสินค้าใน category `OVERSIZED` (รวม **Babytee Striped**, Polo Striped, Kids) ได้รับคำ style vibe ฝังในข้อมูล → ทำให้ Babytee ผ่าน `style_vibe_boost` (1.35x) สำหรับ query `"เสื้อเท่ๆ"` เท่ากับ Oversize จริงๆ
+   - **Fix 1:** ลบคำ `เท่ เท่ๆ สตรีท วินเทจ คูลๆ ชิคๆ` ออกจาก `PERSONA_SYNONYMS["Oversize"]`, `"Tie Dye"`, `"Running Roulette"` เพื่อป้องกัน keyword leakage ผ่าน document expansion
+   - **Fix 2:** เพิ่ม **Smart Cool Vibe Category Boost** ใน `compute_rrf()` สำหรับ `cool`/`street` vibes:
+     - 🚀 สินค้า Oversize / Tie Dye / Collab / Roulette = **style_vibe_boost 2.00x**
+     - 📉 สินค้า Babytee / Crop (female-only) โดยไม่มี gender filter = **demote 0.30x**
+
+2. **RRF Performance Optimization (Pre-compute Query Flags)**:
+   - ก่อนหน้านี้: `_fuzzy_has_keyword`, `re.search(r'(\d+)\s*%')`, `requested_color_syns` ถูกเรียกซ้ำใน loop 1,405 items × 4 fallback passes = 5,620 ครั้ง/query → ช้า **3.9 วินาที**
+   - ปรับปรุง: ดึง `query_has_pants`, `query_has_unwear`, `query_has_bag`, `match_pct_val` ออกมาคำนวณ **นอกลูปครั้งเดียว** → ลดความล่าช้าเหลือ **< 225 ms (17.3x speedup)**
+
+3. **PromotionService Memory Staleness Fix**:
+   - เพิ่ม `self._load_promotions_from_db()` ใน `get_daily_deals()`, `get_monthly_deals()`, `get_all_coupons()` ป้องกัน Web Server process จำข้อมูลดีลเก่าใน RAM หลังรัน Scraper CLI
+
+4. **ผลการทดสอบ Automated Pytest Suite**: **19/19 PASSED (44.39s)** ✅
+
+### 📐 ADR Rules Derived
+- **Rule:** `PERSONA_SYNONYMS` ต้องไม่มี style vibe keywords (`เท่ สตรีท วินเทจ คูล`) เพราะ Document Expansion จะฉีดคำเหล่านี้ให้ทุกสินค้าในหมวดหมู่ OVERSIZED ทำให้เกิด false positive ใน style vibe matching
+- **Rule:** Style vibe signal ควรมาจาก `STYLE_VIBE_KEYWORDS_MAP` + `compute_rrf()` boosting เท่านั้น ไม่ใช่จากการ inject ผ่าน synonym expansion
+- **Rule:** สำหรับ `cool`/`street` vibe → ต้องมี category-aware boost: Oversize/Collab/TieDye = 2.0x, Babytee/Crop (female) = 0.3x
 
 ---
 
