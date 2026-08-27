@@ -94,16 +94,23 @@ class YuedpaoScraperService:
                 logger.error("Failed to open Hamburger drawer menu.")
                 return menu_structure
                 
-            # 2. Get all visible main category names
-            spans = await page.query_selector_all("span.css-1dwwjt3")
+            # 2. Get all visible main category names using stable pointer-cursor class or MuiDrawer-paper spans
+            spans = await page.query_selector_all(".MuiDrawer-paper span")
+            if not spans:
+                spans = await page.query_selector_all("span.pointer-cursor")
+            if not spans:
+                spans = await page.query_selector_all("span.css-1dwwjt3")
+                
             main_category_names = []
             for s in spans:
                 if await s.is_visible():
+                    classes = await s.evaluate("el => Array.from(el.classList)")
                     text = (await s.inner_text()).strip()
-                    if (text and 
-                        text not in ["เกี่ยวกับ", "นโยบาย", "ช่วยเหลือ", "สนับสนุน"] and 
-                        "cs_yuedpao" not in text):
-                        main_category_names.append(text)
+                    if text and ("pointer-cursor" in classes or "css-1dwwjt3" in classes or "MuiTypography-root" in classes):
+                        if (text not in ["เกี่ยวกับ", "นโยบาย", "ช่วยเหลือ", "สนับสนุน", "ดูทั้งหมด"] and 
+                            "cs_yuedpao" not in text):
+                            if text not in main_category_names:
+                                main_category_names.append(text)
                         
             logger.info(f"Discovered {len(main_category_names)} main categories: {main_category_names}")
             
@@ -115,7 +122,12 @@ class YuedpaoScraperService:
                     await self._hide_overlays(page)
                     
                     # Find category span fresh in the Drawer
-                    spans = await page.query_selector_all("span.css-1dwwjt3")
+                    spans = await page.query_selector_all(".MuiDrawer-paper span")
+                    if not spans:
+                        spans = await page.query_selector_all("span.pointer-cursor")
+                    if not spans:
+                        spans = await page.query_selector_all("span.css-1dwwjt3")
+                        
                     target_el = None
                     for s in spans:
                         if await s.is_visible() and (await s.inner_text()).strip() == cat_name:
@@ -126,29 +138,47 @@ class YuedpaoScraperService:
                         await target_el.click()
                         await page.wait_for_timeout(1000)
                         
-                        # Read all visible submenu links restricted to the Drawer
-                        links = await page.query_selector_all(".MuiDrawer-paper a")
-                        if not links:
-                            links = await page.query_selector_all("div[role='presentation'] a")
-                        if not links:
-                            links = await page.query_selector_all("a")
-                            
-                        subs = []
-                        seen_urls = set()
-                        for link in links:
-                            if await link.is_visible():
-                                href = await link.get_attribute("href")
-                                text = (await link.inner_text()).strip()
+                        # Check if the page URL changed (direct navigation for categories without submenus, e.g. ACCESSORIES, RIB BRA)
+                        current_url = page.url
+                        if current_url and current_url.rstrip("/") != self.base_url.rstrip("/"):
+                            subs = [{"name": cat_name, "url": current_url}]
+                        else:
+                            # Drawer expanded. Read visible submenu links restricted to the Drawer
+                            links = await page.query_selector_all(".MuiDrawer-paper a")
+                            if not links:
+                                links = await page.query_selector_all("div[role='presentation'] a")
                                 
-                                if href and href != "/" and text and text != "ดูทั้งหมด" and "cs_yuedpao" not in text:
-                                    full_url = href if href.startswith("http") else self.base_url + href
-                                    if "facebook.com" not in href and "instagram.com" not in href and "line.me" not in href:
-                                        if full_url not in seen_urls:
-                                            seen_urls.add(full_url)
-                                            subs.append({"name": text, "url": full_url})
+                            subs = []
+                            seen_urls = set()
+                            all_links_list = []
+                            if links:
+                                for link in links:
+                                    if await link.is_visible():
+                                        href = await link.get_attribute("href")
+                                        text = (await link.inner_text()).strip()
+                                        if href and href != "/":
+                                            full_url = href if href.startswith("http") else self.base_url + href
+                                            if "facebook.com" not in href and "instagram.com" not in href and "line.me" not in href:
+                                                all_links_list.append({"name": text, "url": full_url})
+                                                
+                            # Prioritize "ดูทั้งหมด" links as they list all products in the collection
+                            see_all_links = [l for l in all_links_list if "ดูทั้งหมด" in l["name"]]
+                            if see_all_links:
+                                subs = [{"name": f"{cat_name} (ทั้งหมด)", "url": see_all_links[0]["url"]}]
+                            else:
+                                for l in all_links_list:
+                                    if l["url"] not in seen_urls:
+                                        seen_urls.add(l["url"])
+                                        subs.append(l)
                                         
+                        if not subs:
+                            # Final fallback direct check
+                            current_url = page.url
+                            if current_url and current_url.rstrip("/") != self.base_url.rstrip("/"):
+                                subs.append({"name": cat_name, "url": current_url})
+                                
                         menu_structure[cat_name] = subs
-                        logger.info(f"Category '{cat_name}': Found {len(subs)} subcategories.")
+                        logger.info(f"Category '{cat_name}': Found {len(subs)} subcategories/links.")
                         
                         # Click the back button to slide back to the main categories list
                         svgs_after = await page.query_selector_all("svg")
@@ -231,13 +261,18 @@ class YuedpaoScraperService:
                     logger.info("Scrolling page to trigger lazy load...")
                     last_height = await page.evaluate("document.body.scrollHeight")
                     scroll_step = 700
-                    for _ in range(12):
+                    no_change_count = 0
+                    for _ in range(40):
                         await page.evaluate(f"window.scrollBy(0, {scroll_step})")
                         await page.wait_for_timeout(400)
                         new_height = await page.evaluate("document.body.scrollHeight")
                         current_scroll_pos = await page.evaluate("window.pageYOffset + window.innerHeight")
-                        if current_scroll_pos >= new_height and new_height == last_height:
-                            break
+                        if new_height == last_height:
+                            no_change_count += 1
+                            if no_change_count >= 3 or current_scroll_pos >= new_height:
+                                break
+                        else:
+                            no_change_count = 0
                         last_height = new_height
                         
                     await page.wait_for_timeout(1000)
@@ -411,6 +446,22 @@ class YuedpaoScraperService:
             fabric_collection = self._infer_fabric_collection(product_name)
             style_fit = self._infer_style_fit(product_name)
             
+            # 10. Extract sales volume from product detail page
+            sales_volume = 0
+            sales_span = soup.find(lambda tag: tag.name == "span" and "ขายแล้ว" in tag.text)
+            if not sales_span:
+                sales_span = soup.find(lambda tag: tag.name in ["span", "p", "div"] and "ขายแล้ว" in tag.get_text())
+            if sales_span:
+                sales_text = sales_span.get_text(strip=True).lower()
+                sales_match = re.search(r"([\d,.]+)\s*(k?)\s*ขายแล้ว", sales_text)
+                if sales_match:
+                    try:
+                        num_val = float(sales_match.group(1).replace(",", ""))
+                        is_k = sales_match.group(2) == "k"
+                        sales_volume = int(num_val * 1000) if is_k else int(num_val)
+                    except ValueError:
+                        sales_volume = 0
+            
             detail_data = {
                 "name": product_name,
                 "price": price,
@@ -424,7 +475,8 @@ class YuedpaoScraperService:
                 "size_chart_url": size_chart_url,
                 "gallery_images": gallery_images,
                 "product_url": url,
-                "is_available": is_available
+                "is_available": is_available,
+                "sales_volume": sales_volume
             }
         finally:
             if should_close_browser:
@@ -451,8 +503,33 @@ class YuedpaoScraperService:
                 if p_fallback:
                     price_text = p_fallback.get_text(strip=True)
             
-            price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
-            price = min(price_nums) if price_nums else 0
+            # Decimal Price Bugfix: match digits and float dots
+            price_match = re.search(r"฿\s*([\d,.]+)", price_text)
+            if price_match:
+                clean_num_str = price_match.group(1).replace(",", "")
+                try:
+                    price = float(clean_num_str) if "." in clean_num_str else int(clean_num_str)
+                except ValueError:
+                    price = 0
+            else:
+                price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
+                price = min(price_nums) if price_nums else 0
+            
+            # Sales Volume Extraction
+            sales_volume = 0
+            sales_span = item.find(lambda tag: tag.name == "span" and "ขายแล้ว" in tag.text)
+            if not sales_span:
+                sales_span = item.find(lambda tag: tag.name in ["span", "p", "div"] and "ขายแล้ว" in tag.get_text())
+            if sales_span:
+                sales_text = sales_span.get_text(strip=True).lower()
+                sales_match = re.search(r"([\d,.]+)\s*(k?)\s*ขายแล้ว", sales_text)
+                if sales_match:
+                    try:
+                        num_val = float(sales_match.group(1).replace(",", ""))
+                        is_k = sales_match.group(2) == "k"
+                        sales_volume = int(num_val * 1000) if is_k else int(num_val)
+                    except ValueError:
+                        sales_volume = 0
             
             image_url = ""
             img_div = item.find("div", style=lambda x: x and "background-image" in x)
@@ -482,10 +559,11 @@ class YuedpaoScraperService:
                 "name": name,
                 "price": price,
                 "image_url": image_url,
-                "product_url": product_url
+                "product_url": product_url,
+                "sales_volume": sales_volume
             })
         return products
-
+ 
     def _infer_category(self, name: str, url: str) -> str:
         name_lower = name.lower()
         if "babytee" in name_lower or "baby tee" in name_lower or "เบบี้ที" in name_lower:
@@ -498,8 +576,20 @@ class YuedpaoScraperService:
             return "เสื้อยืดคอวี"
         elif "โปโล" in name or "polo" in name_lower:
             return "เสื้อโปโล"
-        elif "กางเกง" in name or "pants" in name_lower or "shorts" in name_lower:
+        elif "กางเกง" in name or "pants" in name_lower or "shorts" in name_lower or "jeans" in name_lower or "ยีนส์" in name_lower:
             return "กางเกง"
+        elif "bag" in name_lower or "กระเป๋า" in name:
+            return "กระเป๋า"
+        elif "cap" in name_lower or "หมวก" in name or "hat" in name_lower:
+            return "หมวก"
+        elif "bra" in name_lower or "บรา" in name:
+            return "ชุดชั้นใน"
+        elif "unwear" in name_lower or "กางเกงใน" in name:
+            return "กางเกงใน"
+        elif "sleeveless" in name_lower or "แขนกุด" in name:
+            return "เสื้อแขนกุด"
+        elif "tie dye" in name_lower or "มัดย้อม" in name:
+            return "เสื้อมัดย้อม"
         return "เสื้อยืด"
 
     def _infer_fabric_collection(self, name: str) -> str:

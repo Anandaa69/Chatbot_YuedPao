@@ -47,15 +47,25 @@ def init_db():
         category TEXT NOT NULL,
         fabric_collection TEXT NOT NULL,
         style_fit TEXT NOT NULL,
-        price INTEGER NOT NULL,
+        price REAL NOT NULL,
         description TEXT,
         image_url TEXT,
         size_chart_url TEXT,
         product_url TEXT,
-        is_available BOOLEAN DEFAULT 1
+        is_available BOOLEAN DEFAULT 1,
+        sales_volume INTEGER DEFAULT 0
     );
     """)
     
+    # Ensure sales_volume column exists in products table (migration)
+    try:
+        cursor.execute("PRAGMA table_info(products)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if columns and "sales_volume" not in columns:
+            cursor.execute("ALTER TABLE products ADD COLUMN sales_volume INTEGER DEFAULT 0")
+    except Exception as e:
+        pass
+        
     # 3. Create product-category mapping table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS product_category_mappings (
@@ -140,8 +150,8 @@ def save_product_to_db(p_data: dict, current_category_id: Optional[str] = None):
     cursor.execute("""
     INSERT INTO products (
         product_id, name, category, fabric_collection, style_fit, 
-        price, description, image_url, size_chart_url, product_url, is_available
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        price, description, image_url, size_chart_url, product_url, is_available, sales_volume
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(product_id) DO UPDATE SET
         name=excluded.name,
         category=excluded.category,
@@ -152,11 +162,12 @@ def save_product_to_db(p_data: dict, current_category_id: Optional[str] = None):
         image_url=excluded.image_url,
         size_chart_url=excluded.size_chart_url,
         product_url=excluded.product_url,
-        is_available=excluded.is_available;
+        is_available=excluded.is_available,
+        sales_volume=excluded.sales_volume;
     """, (
         product_id, p_data["name"], category_name, p_data["fabric_collection"], p_data["style_fit"],
         p_data["price"], p_data["description"], p_data["image_url"], p_data["size_chart_url"],
-        p_data["product_url"], 1 if p_data["is_available"] else 0
+        p_data["product_url"], 1 if p_data["is_available"] else 0, p_data.get("sales_volume", 0)
     ))
     
     # 2. Save product-category mapping
@@ -231,6 +242,60 @@ def generate_nlp_vocabulary():
     with open(VOCAB_FILE, "w", encoding="utf-8") as f:
         json.dump(vocab_data, f, ensure_ascii=False, indent=2)
 
+EXTRA_CATEGORIES = [
+    {
+        "category_id": "accessories",
+        "category_name": "ACCESSORIES",
+        "parent_name": "ACCESSORIES",
+        "url": "https://www.yuedpao.com/ACCESSORIES-cat.ordqos?sorter=PRODUCT_SORTER_POPULAR"
+    },
+    {
+        "category_id": "rib_bra",
+        "category_name": "RIB BRA",
+        "parent_name": "RIB BRA",
+        "url": "https://www.yuedpao.com/RIBBRA-cat.pj4ril?sorter=PRODUCT_SORTER_POPULAR"
+    },
+    {
+        "category_id": "unwear",
+        "category_name": "UNWEAR",
+        "parent_name": "UNWEAR",
+        "url": "https://www.yuedpao.com/UNWEAR-cat.pvsh2e?sorter=PRODUCT_SORTER_POPULAR"
+    }
+]
+
+
+ALLOWED_MAIN_CATEGORIES = {
+    "ULTRA FLOW (กีฬา)",
+    "ULTRASOFT NON-IRON (เสื้อยืด)",
+    "ULTIMATE COLLECTION (Work wear)",
+    "SMOOTH SKIN",
+    "SMOOTH FLEX JEANS (กางเกงยีนส์ยืด)",
+    "SMOOTH STRETCH JEANS",
+    "SOFT TECH UNWEAR",
+    "UNWEAR",
+    "RIB BRA",
+    "RIB COOL MOOD",
+    "KODNUM",
+    "SIGNATURE",
+    "OVERSIZED",
+    "OVERSIZE TIMELESS",
+    "FEATHER COMFORT",
+    "YUEDPAO COLLECTION",
+    "FLEECE AIR FLOW COLLECTION",
+    "COLLAB COLLECTION",
+    "ECOTECH",
+    "YXZ COLLABORATION",
+    "SMOOTH STRETCH CARGO",
+    "POLO WAFFLE",
+    "RUNNING ROULETTE",
+    "ACCESSORIES",
+    "Minimal Street Collection",
+    "TAILOR COOL POLO INNOVATION",
+    "SWEATER",
+    "OVERSIZE BOXY"
+}
+
+
 async def main_async():
     parser = argparse.ArgumentParser(description="Yuedpao E-commerce Scraper & DB Pipeline")
     parser.add_argument("--url", type=str, 
@@ -258,20 +323,21 @@ async def main_async():
     async with async_playwright() as p:
         # Launch single browser instance for the entire run
         browser = await p.chromium.launch(headless=True)
-        # Create standard context and page
-        context = await browser.new_context(user_agent=scraper.user_agent)
-        page = await context.new_page()
+        # Create standard mobile context for menu crawling
+        context_crawler = await browser.new_context(user_agent=scraper.user_agent, viewport={"width": 375, "height": 812})
+        page_crawler = await context_crawler.new_page()
         
         if args.all:
-            # Reuses standard viewport size for menu structure crawl inside Drawer
-            await page.set_viewport_size({"width": 375, "height": 812})
             print("Step 1/3: Crawling website Hamburger menu structure from homepage...")
-            menu_structure = await scraper.scrape_menu_structure(page=page)
+            menu_structure = await scraper.scrape_menu_structure(page=page_crawler)
             print(f"Discovered {len(menu_structure)} main category branches.")
             
             # Flatten structure into a list of categories to scrape and save to DB
             category_count = 0
+            seen_urls = set()
             for main_cat, subcategories in menu_structure.items():
+                if main_cat not in ALLOWED_MAIN_CATEGORIES:
+                    continue
                 for sub in subcategories:
                     if args.limit_categories and category_count >= args.limit_categories:
                         break
@@ -279,6 +345,7 @@ async def main_async():
                     sub_id = slugify(sub["name"])
                     # Save Category to database
                     save_category_to_db(sub_id, sub["name"], main_cat, sub["url"])
+                    seen_urls.add(sub["url"].split("?")[0].lower())
                     
                     tasks.append({
                         "category_id": sub_id,
@@ -290,6 +357,18 @@ async def main_async():
                 if args.limit_categories and category_count >= args.limit_categories:
                     print(f"Applied limit of {args.limit_categories} categories.")
                     break
+                    
+            # Inject EXTRA_CATEGORIES fallback if not found during crawl
+            for extra in EXTRA_CATEGORIES:
+                clean_url = extra["url"].split("?")[0].lower()
+                if clean_url not in seen_urls:
+                    print(f"Injecting extra missing category task: {extra['category_name']}")
+                    save_category_to_db(extra["category_id"], extra["category_name"], extra["parent_name"], extra["url"])
+                    tasks.append({
+                        "category_id": extra["category_id"],
+                        "category_name": extra["category_name"],
+                        "url": extra["url"]
+                    })
         else:
             # Fallback to single category URL
             sub_id = slugify("เสื้อยืดคอกลม")
@@ -300,72 +379,78 @@ async def main_async():
                 "url": args.url
             })
             
+        await context_crawler.close()
         print(f"Step 2/3: Prepared {len(tasks)} categories to scrape.")
-        
-        # Set desktop viewport size for catalogs and product details
-        await page.set_viewport_size({"width": 1280, "height": 800})
         
         total_success_count = 0
         total_skipped_count = 0
+        lock = asyncio.Lock()
+        sem = asyncio.Semaphore(3) # Max 3 concurrent categories scraped
         
-        # Step 3: Run pipeline with interactive progress bars
-        pbar_categories = tqdm(tasks, desc="Overall Progress (Categories)", unit="category")
-        for task in pbar_categories:
+        async def scrape_category_worker(task):
+            nonlocal total_success_count, total_skipped_count
             cat_id = task["category_id"]
             cat_name = task["category_name"]
             cat_url = task["url"]
             
-            pbar_categories.set_postfix_str(f"Current: {cat_name}")
-            
-            try:
-                # Scrape catalog list reusing the same page
-                catalog_products = await scraper.scrape_catalog_page(cat_url, page=page)
+            async with sem:
+                print(f"[Scraper Worker] Started category: {cat_name}")
+                context = await browser.new_context(user_agent=scraper.user_agent)
+                page = await context.new_page()
+                await page.set_viewport_size({"width": 1280, "height": 800})
                 
-                # Deduplicate items
-                unique_products = []
-                seen_ids = set()
-                for p_item in catalog_products:
-                    if p_item["product_id"] and p_item["product_id"] not in seen_ids:
-                        seen_ids.add(p_item["product_id"])
-                        unique_products.append(p_item)
+                try:
+                    # Scrape catalog list
+                    catalog_products = await scraper.scrape_catalog_page(cat_url, page=page)
+                    
+                    # Deduplicate items
+                    unique_products = []
+                    seen_ids = set()
+                    for p_item in catalog_products:
+                        if p_item["product_id"] and p_item["product_id"] not in seen_ids:
+                            seen_ids.add(p_item["product_id"])
+                            unique_products.append(p_item)
+                            
+                    if args.limit:
+                        unique_products = unique_products[:args.limit]
                         
-                if args.limit:
-                    unique_products = unique_products[:args.limit]
+                    print(f"[Scraper Worker] Category '{cat_name}': Found {len(unique_products)} items to scrape.")
                     
-                # Inner progress bar for products in current category
-                pbar_products = tqdm(unique_products, desc=f"   Scraping {cat_name[:20]}", leave=False, unit="item")
-                for p_item in pbar_products:
-                    p_id = p_item["product_id"]
-                    pbar_products.set_postfix_str(f"Product: {p_item['name'][:15]}")
-                    
-                    # Optimization 1: Cache checking in database
-                    # If this product has already been fully scraped from another category, 
-                    # we just add the category mapping and skip launching/visiting the network page.
-                    if check_product_exists(p_id) and not args.force:
-                        save_product_category_mapping(p_id, cat_id)
-                        total_success_count += 1
-                        total_skipped_count += 1
-                        continue
-                    
-                    detail_url = p_item.get("product_url")
-                    if not detail_url:
-                        slug_name = p_item["name"].replace(" ", "-").replace("_", "-")
-                        detail_url = f"https://www.yuedpao.com/physical/{slug_name}-{p_id}"
+                    for p_item in unique_products:
+                        p_id = p_item["product_id"]
                         
-                    try:
-                        # Scrape product details reusing the same page
-                        p_detail = await scraper.scrape_product_detail(detail_url, page=page)
-                        if p_detail and p_detail.get("name"):
-                            save_product_to_db(p_detail, current_category_id=cat_id)
-                            total_success_count += 1
-                    except Exception as e:
-                        # Keep tqdm clean by avoiding prints
-                        pass
-                pbar_products.close()
-            except Exception as e:
-                pass
-                
-        pbar_categories.close()
+                        # Optimization 1: Cache checking in database
+                        if check_product_exists(p_id) and not args.force:
+                            async with lock:
+                                save_product_category_mapping(p_id, cat_id)
+                                total_success_count += 1
+                                total_skipped_count += 1
+                            continue
+                        
+                        detail_url = p_item.get("product_url")
+                        if not detail_url:
+                            slug_name = p_item["name"].replace(" ", "-").replace("_", "-")
+                            detail_url = f"https://www.yuedpao.com/physical/{slug_name}-{p_id}"
+                            
+                        try:
+                            # Scrape product details
+                            p_detail = await scraper.scrape_product_detail(detail_url, page=page)
+                            if p_detail and p_detail.get("name"):
+                                if p_detail.get("sales_volume", 0) == 0:
+                                    p_detail["sales_volume"] = p_item.get("sales_volume", 0)
+                                async with lock:
+                                    save_product_to_db(p_detail, current_category_id=cat_id)
+                                    total_success_count += 1
+                        except Exception as e:
+                            logger.error(f"Error scraping product detail {detail_url}: {e}")
+                except Exception as e:
+                    logger.error(f"Error scraping category {cat_name}: {e}")
+                finally:
+                    await context.close()
+                    print(f"[Scraper Worker] Finished category: {cat_name}")
+                    
+        # Run all category scraping workers concurrently using asyncio.gather
+        await asyncio.gather(*(scrape_category_worker(task) for task in tasks))
         await browser.close()
         
     print(f"Scraping pipeline completed. Successfully imported {total_success_count} products (Skipped {total_skipped_count} repeats from cache).")

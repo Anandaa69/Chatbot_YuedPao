@@ -57,15 +57,23 @@ STYLE_SYNONYMS = {
 }
 
 PERSONA_SYNONYMS = {
-    "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง สาวอวบ ซ่อนหน้าท้อง ซ่อนพุง คนท้อง",
+    "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง สาวอวบ ซ่อนหน้าท้อง ซ่อนพุง คนท้อง เท่ เท่ๆ สตรีท วินเทจ คูลๆ ชิคๆ",
     "Kid": "เด็ก เสื้อเด็ก ของขวัญเด็ก เด็กอนุบาล ลายน่ารัก kidซ คิดส์ คิด",
-    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ คอปก เสื้อคอปก เสื้อมีปก ปก ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่",
-    "Crop": "เสื้อครอป น่ารัก สาวๆ เที่ยวทะเล คอกลม ทรงสั้นเอว เอวสูง ตัวเล็ก",
+    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ คอปก เสื้อคอปก เสื้อมีปก ปก ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่ สวย สวยๆ เรียบหรู คัตติ้งเนี๊ยบ",
+    "Crop": "เสื้อครอป น่ารัก น่ารักๆ สาวๆ เที่ยวทะเล คอกลม ทรงสั้นเอว เอวสูง ตัวเล็ก คิ้วท์ๆ หวานๆ สดใส y2k",
     "Running": "ใส่วิ่ง ออกกำลังกาย ระบายอากาศ ระบายความร้อน อากาศไทย ไม่ร้อน รันนิ่ง สปอร์ต เดินป่า ไม่หมองจากเหงื่อ ไม่มีกลิ่นเหงื่อ",
-    "Tie Dye": "มัดย้อม ไทด์ดาย ไทน์ดาย ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม ถ่ายรูป content อาร์ต สตรีท",
+    "Tie Dye": "มัดย้อม ไทด์ดาย ไทน์ดาย ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม ถ่ายรูป content อาร์ต สตรีท เท่ๆ",
     "Sleeveless": "แขนกุด อากาศร้อน ไม่อึดอัด เสื้อกล้าม โยคะ ยืดหยุ่น",
-    "Running Roulette": "รันนิ่งรูเล็ต รันนิ่ง รูเล็ต เสื้อฟอก วินเทจ",
-    "Babytee": "เบบี้ที เบบี้ทีส์ เสื้อตัวเล็ก เสื้อยืดตัวเล็ก เบบี้ทีมูนิมอล"
+    "Running Roulette": "รันนิ่งรูเล็ต รันนิ่ง รูเล็ต เสื้อฟอก วินเทจ เท่ เท่ๆ สตรีท",
+    "Babytee": "เบบี้ที เบบี้ทีส์ เสื้อตัวเล็ก เสื้อยืดตัวเล็ก เบบี้ทีมูนิมอล น่ารัก น่ารักๆ คิ้วท์ๆ หวานๆ สดใส y2k",
+    "Bag": "กระเป๋า กระเป๋าสะพาย กระเป๋าสะพายข้าง กระเป๋าถือ bagก baggg crossbody carrybag tote",
+    "Pants": "กางเกง กางเกงขาสั้น กางเกงขายาว กางเกงยีนส์ ยีนส์ คาร์โก้ cargo short shorts pant pants"
+}
+
+STYLE_VIBE_KEYWORDS_MAP = {
+    "cool": ["เท่", "เท่ๆ", "สตรีท", "วินเทจ", "เสื้อฟอก", "ยีนส์", "คาร์โก้", "คูล", "คูลๆ", "แมนๆ"],
+    "cute": ["น่ารัก", "น่ารักๆ", "คิ้วท์", "คิ้วท์ๆ", "หวานๆ", "สดใส", "คุณหนู", "y2k", "คาเฟ่"],
+    "chic": ["สวย", "สวยๆ", "เรียบหรู", "ดูดี", "สุภาพ", "ใส่ทำงาน", "ชิค", "ชิคๆ", "คัตติ้งเนี๊ยบ"]
 }
 
 KODNUM_SYNONYMS = {
@@ -108,7 +116,9 @@ INTENT_MAP_KEYWORDS = {
     "crop": ["ครอป", "crop", "ทรงสั้นเอว", "เอวสูง"],
     "sleeveless": ["แขนกุด", "เสื้อกล้าม", "โยคะ"],
     "running": ["วิ่ง", "ออกกำลังกาย", "ระบายเหงื่อ", "รันนิ่ง", "เดินป่า", "ไม่มีกลิ่นเหงื่อ"],
-    "jeans": ["ยีนส์", "เกงยีนส์", "กางเกงยีนส์", "เดนิม"]
+    "jeans": ["ยีนส์", "เกงยีนส์", "กางเกงยีนส์", "เดนิม"],
+    "bag": ["กระเป๋า", "กระเป๋าสะพาย", "กระเป๋าถือ", "bag", "bagg", "crossbody", "carrybag", "tote"],
+    "pants": ["กางเกง", "กางเกงขาสั้น", "กางเกงขายาว", "ขาสั้น", "ขายาว", "คาร์โก้", "cargo", "shorts", "pants"]
 }
 
 
@@ -377,10 +387,18 @@ class ProductService:
                 detected_cols.append(col_key)
         return detected_cols
 
+    def _detect_query_style_vibes(self, query: str) -> List[str]:
+        q_lower = query.lower()
+        detected_vibes = []
+        for vibe_key, kw_list in STYLE_VIBE_KEYWORDS_MAP.items():
+            if any(kw in q_lower for kw in kw_list):
+                detected_vibes.append(vibe_key)
+        return detected_vibes
+
     def _detect_query_gender(self, query: str) -> Optional[str]:
         q_lower = query.lower()
-        female_query_kws = ["ผู้หญิง", "หญิง", "สำหรับผู้หญิง", "คุณผู้หญิง", "women", "woman", "สาว"]
-        male_query_kws = ["ผู้ชาย", "ชาย", "สำหรับผู้ชาย", "คุณผู้ชาย", "men", "man"]
+        female_query_kws = ["ผู้หญิง", "หญิง", "สำหรับผู้หญิง", "คุณผู้หญิง", "women", "woman", "สาว", "สาวๆ", "สวย", "น่ารัก", "น่ารักๆ", "คิ้วท์"]
+        male_query_kws = ["ผู้ชาย", "ชาย", "สำหรับผู้ชาย", "คุณผู้ชาย", "men", "man", "หล่อ", "หล่อๆ", "แมน"]
         
         has_female = any(kw in q_lower for kw in female_query_kws)
         has_male = any(kw in q_lower for kw in male_query_kws)
@@ -404,6 +422,9 @@ class ProductService:
         detected_intents = self._detect_query_intents(raw_query)
         requested_colors = self._detect_query_colors(raw_query)
         requested_gender = self._detect_query_gender(raw_query)
+        requested_vibes = self._detect_query_style_vibes(raw_query)
+
+        print(f"🔎 [Search Engine Debug] Query: '{raw_query}' ──► Gender Filter: '{requested_gender}' | Style Vibes: {requested_vibes} | Intents: {detected_intents} | Colors: {requested_colors} | Max Price: {max_price}")
 
         # 1. BM25 ranks
         bm25_scores = [0.0] * len(self.documents)
@@ -471,6 +492,10 @@ class ProductService:
                         continue
                     if "running" in detected_intents and not ("running" in item_haystack or "วิ่ง" in item_haystack or "รันนิ่ง" in item_haystack or "ออกกำลังกาย" in item_haystack):
                         continue
+                    if "bag" in detected_intents and not ("bag" in item_haystack or "กระเป๋า" in item_haystack or "crossbody" in item_haystack or "tote" in item_haystack):
+                        continue
+                    if "pants" in detected_intents and not ("pants" in item_haystack or "กางเกง" in item_haystack or "ขาสั้น" in item_haystack or "ขายาว" in item_haystack or "shorts" in item_haystack or "cargo" in item_haystack or "ยีนส์" in item_haystack):
+                        continue
 
                 # Intent Boost (1.60x for polo, 1.25x for others)
                 intent_boost = 1.0
@@ -487,7 +512,41 @@ class ProductService:
                             color_boost = 1.30
                             break
 
-                final_score = base_score * intent_boost * color_boost
+                # Style Vibe Match Boost (1.35x)
+                style_vibe_boost = 1.0
+                requested_vibes = self._detect_query_style_vibes(raw_query)
+                if requested_vibes:
+                    for req_vibe in requested_vibes:
+                        syn_list = STYLE_VIBE_KEYWORDS_MAP.get(req_vibe, [req_vibe])
+                        if any(syn in item_haystack for syn in syn_list):
+                            style_vibe_boost = 1.35
+                            break
+
+                # Gender Preference Match Boost (1.75x for specific gender products)
+                gender_match_boost = 1.0
+                if requested_gender == "female":
+                    if item_gender == "female":
+                        gender_match_boost = 1.75
+                    elif item_gender == "unisex":
+                        gender_match_boost = 1.0
+                elif requested_gender == "male":
+                    if item_gender == "male":
+                        gender_match_boost = 1.75
+                    elif item_gender == "unisex":
+                        gender_match_boost = 1.0
+
+                # Demographic Demotion Factors for broad queries
+                query_lower = raw_query.lower()
+                query_has_kids = any(k in query_lower for k in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก"])
+                query_has_crop = any(k in query_lower for k in ["crop", "ครอป", "เอวลอย"])
+
+                item_is_kids = "kid" in item_haystack or "เด็ก" in item_haystack
+                item_is_crop = "crop" in item_haystack or "ครอป" in item_haystack
+
+                kids_boost = 0.15 if (item_is_kids and not query_has_kids) else 1.0
+                crop_boost = 0.40 if (item_is_crop and not query_has_crop) else 1.0
+
+                final_score = base_score * intent_boost * color_boost * style_vibe_boost * gender_match_boost * kids_boost * crop_boost
 
                 scores[doc_id] = {
                     "score": final_score,

@@ -161,9 +161,31 @@ class IntentService:
         return dp[m][n]
 
     def _correct_word(self, word: str, max_dist: float = 1.5) -> str:
-        if not word or len(word) <= 1 or word.isdigit():
+        if not word or word.isdigit():
             return word
+        
+        TYPO_MAP = {
+            "บืด": "ยืด",
+            "บึด": "ยืด",
+            "เสิ้อยืด": "เสื้อยืด",
+            "เสื้อบืด": "เสื้อยืด",
+            "เสื้อบึด": "เสื้อยืด",
+            "babytree": "babytee",
+            "โอเวอไซ": "Oversize",
+            "โอเวอร์ไซ": "Oversize",
+            "อลตราซอฟ": "Ultrasoft",
+            "อัลตราซอฟ": "Ultrasoft",
+            "ทเลอคูล": "Tailor Cool"
+        }
         word_lower = word.lower()
+        if word_lower in TYPO_MAP:
+            return TYPO_MAP[word_lower]
+        if word in TYPO_MAP:
+            return TYPO_MAP[word]
+
+        if len(word) <= 1:
+            return word
+
         for dw in self.domain_vocab:
             if dw.lower() == word_lower:
                 return dw
@@ -181,9 +203,42 @@ class IntentService:
 
     def correct_spelling(self, sentence: str) -> Tuple[str, float]:
         start_t = time.perf_counter()
+        if not sentence:
+            return sentence, 0.0
+
+        # Pre-tokenization Domain Phrase Normalization
+        phrase_map = {
+            "เสื้อบืด": "เสื้อยืด",
+            "เสื้อบึด": "เสื้อยืด",
+            "เสิ้อยืด": "เสื้อยืด",
+            "เสื้อยึด": "เสื้อยืด",
+            "babytree": "babytee",
+            "โอเวอไซ": "Oversize",
+            "โอเวอร์ไซ": "Oversize",
+            "อลตราซอฟ": "Ultrasoft",
+            "อัลตราซอฟ": "Ultrasoft",
+            "ทเลอคูล": "Tailor Cool",
+            "เทเลอร์คูล": "Tailor Cool",
+            "ผ้านุม": "ผ้านุ่ม",
+            "ยับยอก": "ยับยาก",
+            "เกงยีน": "กางเกงยีนส์",
+            "เบบี้ทีส์": "BabyTee",
+            "คร็อป": "Crop",
+            "เกงขาสั้น": "กางเกง",
+            "คอกม": "คอกลม",
+            "คอวึ": "คอวี",
+            "ใส่วิ่งง": "ใส่วิ่ง",
+            "แขนกุดด": "แขนกุด",
+            "มัดย้อมม": "มัดย้อม",
+            "คอปกก": "คอปก"
+        }
+        for typo, clean in phrase_map.items():
+            if typo in sentence:
+                sentence = sentence.replace(typo, clean)
+
         if not word_tokenize:
             return sentence, 0.0
-            
+
         tokens = word_tokenize(sentence, engine="newmm")
         filtered_tokens = [t for t in tokens if t.strip() and t.lower() not in self.stop_words]
         if not filtered_tokens:

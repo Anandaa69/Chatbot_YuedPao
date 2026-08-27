@@ -9,6 +9,56 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-27] - Session 12: Female-First Preference Boost (`1.75x`) & Gender Preference RRF ADR
+
+### 🎯 Key Accomplishments
+1. **Gender Preference Match Boost (`gender_match_boost`)**:
+   - Resolved issue where Unisex Polo shirts with high BM25 scores beat female-specific products (`Gender: female`) on queries like `"ขอดูเสื้อผู้หญิง..."`.
+   - Introduced `gender_match_boost` (1.75x) in [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) (`compute_rrf`):
+     - When `requested_gender == "female"`, products with `Gender: female` receive a **1.75x boost** over `unisex` items.
+     - When `requested_gender == "male"`, products with `Gender: male` receive a **1.75x boost** over `unisex` items.
+2. **Polo Crop & Female Apparel Keyword Enrichment**:
+   - Expanded `PERSONA_SYNONYMS` for `Polo` and `Crop` with `โปโลครอป`, `polo crop`, `ครอปโปโล`, `เสื้อผู้หญิง`.
+3. **Verification Results**:
+   - Re-tested `'ขอดูเสื้อผู้หญิงน่ารักๆ หน่อย'` and `'ขอดูเสื้อผู้หญิงสวยๆ หน่อย'`: Top 4 items rendered are 100% Female-specific products (`Gender: female`), completely eliminating Unisex Polo LongSleeve from the top ranks!
+
+---
+
+## 📅 [2026-08-27] - Session 11: Fashion Aesthetic & Style Vibe Understanding (`STYLE_VIBE_KEYWORDS_MAP`) ADR
+
+### 🎯 Key Accomplishments
+1. **Fashion Aesthetics & Vibe Architecture**:
+   - Defined `STYLE_VIBE_KEYWORDS_MAP` in [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) covering 3 primary aesthetic categories:
+     - `cool`: `"เท่"`, `"เท่ๆ"`, `"สตรีท"`, `"วินเทจ"`, `"เสื้อฟอก"`, `"ยีนส์"`, `"คาร์โก้"`, `"คูล"`
+     - `cute`: `"น่ารัก"`, `"น่ารักๆ"`, `"คิ้วท์"`, `"สดใส"`, `"หวานๆ"`, `"y2k"`
+     - `chic`: `"สวย"`, `"สวยๆ"`, `"เรียบหรู"`, `"ดูดี"`, `"สุภาพ"`, `"ใส่ทำงาน"`, `"คัตติ้งเนี๊ยบ"`
+2. **Document Expansion & Style Boost**:
+   - Injected aesthetic synonyms into `PERSONA_SYNONYMS` for `Oversize`, `Polo`, `Crop`, `Babytee`, `Running Roulette`, and `Tie Dye`.
+   - Added `_detect_query_style_vibes()` and `style_vibe_boost` (1.35x) in RRF Hybrid Search Engine (`compute_rrf`).
+3. **Structured Debug Logging Upgrade**:
+   - Enhanced `search_products()` and `TieredRouter` debug output to print `Gender Filter`, `Style Vibes`, `Intents`, `Colors`, `Max Price`, `Category`, and `Gender` attributes per rendered card.
+4. **Verification & Testing**:
+   - Added `test_product_service_style_vibe_matching()` in `tests/test_services.py`. All 8 unit tests passed cleanly.
+
+---
+
+## 📅 [2026-08-27] - Session 10: Thai Keyboard Typo Mapping & Demographic Demotion ADR
+
+### 🎯 Key Accomplishments
+1. **Thai Apparel Keyboard Typo Mapping (`intent_service.py`)**:
+   - Resolved tokenization issue where PyThaiNLP split `"เสื้อบืด"` into `['เสื้อ', 'บืด']`, preventing standard Edit Distance from matching 8-char `"เสื้อยืด"`.
+   - Added `TYPO_MAP` in `_correct_word()` handling common Thai typos: `"บืด"` ➔ `"ยืด"`, `"บึด"` ➔ `"ยืด"`, `"เสิ้อยืด"` ➔ `"เสื้อยืด"`, `"babytree"` ➔ `"babytee"`.
+   - Verified `'ขอดูเสื้อบืดเท่ๆ'` now cleans perfectly to `'ดู เสื้อยืด เท่'`.
+
+2. **Demographic Demotion Factors (`product_service.py`)**:
+   - Resolved issue where broad adult queries (`"ขอดูเสื้อยืดหน่อย"`, `"เสื้อยืดเท่ๆ"`) returned Kids/Crop items in Top-5 due to short name matches.
+   - Introduced `kids_boost` (0.15x) and `crop_boost` (0.40x) in `compute_rrf`: demotes Kids and Crop items unless explicitly searched for in the user query.
+
+3. **End-to-End Search Verification**:
+   - Re-ran live query `'ขอดูเสื้อบืดเท่ๆ'` through `TieredRouter`: Top-5 items returned 100% adult standard/oversize t-shirts with 0 Kids and 0 Crop items.
+
+---
+
 ## 📅 [2026-08-27] - Session 9: Fix BabyTee Category & Style Misclassification ADR
 
 ### 🎯 Key Accomplishments
@@ -486,16 +536,23 @@ Backlink: [[index]]
    - Tested live against `Worm Yellow` (In stock) -> `is_available = True` (`1`).
    - Full pytest suite passed clean (11/11 passed in 87s).
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+### 📌 Session 30: Scraper Robustness, Concurrency, Prices & Sales Volume ADR
+1. **Drawer Menu Crawling & Direct URL Fallback ([app/services/scraper_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/scraper_service.py))**:
+   - Replaced brittle auto-generated CSS class `span.css-1dwwjt3` with semantic class fallbacks (`span.pointer-cursor` and `.MuiDrawer-paper span`) to withstand front-end MUI Emotion styling updates.
+   - Fixed bug where categories without subcategories (e.g. `ACCESSORIES`, `RIB BRA`, `UNWEAR`) were completely skipped by capturing browser direct URL redirections (`page.url`) on drawer element click.
+   - Prioritized collection-level landing pages (`ดูทั้งหมด`) to avoid redundant subcategory crawling, accelerating crawl speed by ~5x.
+2. **Concurrent Category Scraping ([app/scripts/run_scraper.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/run_scraper.py))**:
+   - Redesigned crawler pipeline from sequential category scraping to concurrent scraping using `asyncio.gather` controlled by `asyncio.Semaphore(3)`.
+   - Utilizes separate browser context pages (`browser.new_context`) for memory-isolated concurrent network requests.
+3. **Decimal Price Bug & Sales Volume Extraction**:
+   - Fixed split decimal prices bug (e.g., 390.50 being split into integer arrays `[390, 50]` where `min` returned `50`) by using float-aware regular expression patterns.
+   - Added `sales_volume` (INTEGER DEFAULT 0) column to `products` SQLite schema via auto-migration checks during DB initialization.
+   - Shifted sales volume extraction from catalog-level (where it was not rendered by Yuedpao's client-side templates) to product detail page-level parser (`scrape_product_detail()`), supporting standard counts and thousands formats (e.g. `34 ขายแล้ว`, `1.2k ขายแล้ว`).
+4. **Allowed Categories Filtering**:
+   - Implemented `ALLOWED_MAIN_CATEGORIES` list containing the 28 standard categories requested by the user.
+   - Bypasses temporary promotional, seasonal, and event categories (e.g. `CHRISTMAS 2025`, `End of year sale 50%`, `End of year sale 40%`, etc.) to prevent database pollution and redundant product scans.
+5. **Verification & Testing**:
+   - Verified parallel crawler execution with `--limit-categories 5 --limit 3 --force`: 8 categories (5 discovered + 3 fallbacks) scraped concurrently. Successfully parsed decimal prices (e.g. `390.00`, `990.00`) and sales volume counters into SQLite database.
+   - Verified that the allowed categories filtering works perfectly by bypassing seasonal sales categories during menu structure flattening.
+   - Verified detail-level sales volume parsing on live products (Sweater `3 ขายแล้ว`, Ultrasoft `34 ขายแล้ว`).
+   - Verified that the full pytest suite (18/18 tests) passes clean.

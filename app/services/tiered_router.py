@@ -124,7 +124,7 @@ class TieredRouter:
         elif intent in ["promotion_deal", "promotion_discount"] and 'promos' in locals() and promos:
             rendered_items = [f"Product: {p.get('name', 'N/A')} | Price: ฿{p.get('price', 0)} | Deal: {p.get('deal_title', 'N/A')}" for p in promos]
         elif 'products' in locals() and products:
-            rendered_items = [f"Product: {p.get('name', 'N/A')} | Price: ฿{p.get('price', 0)}" for p in products]
+            rendered_items = [f"Product: {p.get('name', 'N/A')} | Cat: {p.get('category', 'N/A')} | Gender: {p.get('gender', 'unisex')} | Price: ฿{p.get('price', 0)}" for p in products]
 
         card_count = len(flex_payload.get("contents", [])) if flex_payload and isinstance(flex_payload, dict) and "contents" in flex_payload else 0
         print(f"🚀 [Tiered Router] Intent: '{intent}' ({tier_used}) ──► Flex Cards: {card_count} | QuickReplies: {len(quick_replies.get('items', [])) if quick_replies else 0}")
