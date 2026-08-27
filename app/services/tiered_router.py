@@ -37,7 +37,7 @@ class TieredRouter:
             print(f"⚠️ Error querying coupons table: {e}")
             return []
 
-    def route_query(self, raw_query: str) -> Dict[str, Any]:
+    def route_query(self, raw_query: str, session_history: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Route user inquiry to appropriate service and build response payload.
         """
@@ -97,7 +97,7 @@ class TieredRouter:
                 reply_text = "ขณะนี้ยังไม่มีโปรโมชันส่วนลดเพิ่มเติม ลองติดตามกิจกรรมใหม่ๆ บนหน้าเว็บ YuedPao ได้เลยครับ"
 
         elif intent == "random_recommendation":
-            products = self.product_service.get_fair_top5_recommendations()
+            products = self.product_service.get_fair_top5_recommendations(session_history=session_history)
             reply_text = "สุ่มแนะนำเสื้อยืด 5 หมวดฮิต ยืดเปล่า สไตล์เด่นประจำสัปดาห์ครับ:"
             flex_payload = build_product_flex_carousel(products)
 
@@ -110,7 +110,7 @@ class TieredRouter:
             flex_payload = build_size_recommendation_flex()
 
         else: # Default fallback
-            products = self.product_service.get_fair_top5_recommendations()
+            products = self.product_service.get_fair_top5_recommendations(session_history=session_history)
             reply_text = "ยินดีต้อนรับสู่ YuedPao Chatbot! สามารถเลือกเมนูด้านล่างหรือสอบถามสินค้าได้เลยครับ:"
             flex_payload = build_product_flex_carousel(products)
 

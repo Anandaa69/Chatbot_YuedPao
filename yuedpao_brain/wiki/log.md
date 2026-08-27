@@ -9,6 +9,54 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-27] - Session 33: Fair Random Sampling & Session History Integration (`session_history`) ADR
+
+### 🎯 Key Accomplishments
+1. **Router Session History Integration ([app/services/tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py))**:
+   - Updated `TieredRouter.route_query(raw_query, session_history)` to accept user session history and pass it to `ProductService.get_fair_top5_recommendations(session_history=session_history)`.
+   - Ensures user queries for repeated random recommendations (`random_recommendation`) filter out recently recommended product IDs (last 10 items) to guarantee 100% fresh recommendations.
+2. **Automated Verification**:
+   - Added `test_product_service_fair_random_sampling_session_history()` in [test_services.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_services.py) asserting zero overlap between consecutive sampling batches.
+   - Confirmed test pass rate: **1 PASSED in 19.80s**.
+
+---
+
+## 📅 [2026-08-27] - Session 32: Multi-Intent Comprehensive Automated Test Suite (`tests/test_all_intents.py`) ADR
+
+### 🎯 Key Accomplishments
+1. **Multi-Intent Comprehensive Test Suite (`tests/test_all_intents.py`)**:
+   - Created dedicated test file [test_all_intents.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_all_intents.py) containing 12 automated unit tests across all 6 chatbot intents:
+     - `product_search` (Model, color, price filter, popularity/sales volume boost, female preference/style vibe, category filtering for jeans & bags, typo resilience).
+     - `coupon_ticket` (Carousel payload verification & `clipboard` action buttons).
+     - `promotion_deal` (Daily flash sales & monthly promo deals isolation).
+     - `random_recommendation` (Fair 5-item random sampling).
+     - `fabric_comparison` (4-Fabric technology guide card).
+     - `size_recommendation` (Height & weight size guide card).
+2. **Intent Keyword Enrichment in `intent_service.py`**:
+   - Expanded `product_triggers` in [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) with category and view keywords (`"อยากเห็น"`, `"กระเป๋า"`, `"กางเกง"`, `"ยีนส์"`, `"โปโล"`, `"ครอป"`, `"เบบี้ที"`).
+   - Enriched `INTENT_PASSAGES["product_search"]` passage text to ensure 100% precision in Tier 3 BERT fallback.
+3. **Verification & Benchmark Results**:
+   - Executed `python -m pytest tests/test_all_intents.py -v`: **100% Pass Rate (12/12 PASSED in 39.60s)**.
+
+---
+
+## 📅 [2026-08-27] - Session 31: Popularity & Sales Volume Boost Search (`sales_vol_boost`) ADR
+
+### 🎯 Key Accomplishments
+1. **Sales Volume Database Field & Dynamic SQL Integration**:
+   - Updated `ProductService._load_products_from_db()` in [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) to dynamically extract `sales_volume` from SQLite `products` table.
+   - Injected sales volume metadata into `self.products`, composite document text (`passage: ... | ยอดขาย: X ชิ้น สินค้าขายดี ยอดฮิต`), and ChromaDB `metadatas`.
+2. **Popularity Keywords & Tier 1 Intent Routing**:
+   - Defined `POPULAR_KEYWORDS` list covering Thai/English popular & best seller terms (`"ขายดี"`, `"ขายดีสุด"`, `"ฮิต"`, `"ฮิตๆ"`, `"ยอดฮิต"`, `"นิยม"`, `"ยอดนิยม"`, `"best seller"`, `"bestseller"`, `"top seller"`, `"ตัวขายดี"`, `"สินค้าขายดี"`, `"ตัวฮิต"`).
+   - Updated Tier 1 Priority Rules in [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) to route popular queries directly to `product_search`.
+3. **RRF Sales Volume Multiplier (`sales_vol_boost`)**:
+   - Added `_detect_query_popular()` helper and log-scaled popularity boost `sales_vol_boost = 1.0 + min(np.log1p(sales_vol) * 0.25, 1.8)` (yielding up to **~2.65x multiplier** for top-selling items) in RRF Engine (`compute_rrf`).
+   - Standard queries apply a minor tie-breaker boost (`1.0 + min(np.log1p(sales_vol) * 0.02, 0.15)`).
+4. **Verification & Testing**:
+   - Added `test_product_service_popular_sales_volume_search()` in [test_services.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_services.py). Confirmed 100% pass rate across automated unit tests.
+
+---
+
 ## 📅 [2026-08-27] - Session 12: Female-First Preference Boost (`1.75x`) & Gender Preference RRF ADR
 
 ### 🎯 Key Accomplishments

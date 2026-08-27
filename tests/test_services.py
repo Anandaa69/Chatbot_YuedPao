@@ -79,3 +79,38 @@ def test_product_service_style_vibe_matching():
     assert len(res_chic) > 0
 
 
+def test_product_service_popular_sales_volume_search():
+    from app.services.product_service import ProductService
+    ps = ProductService.get_instance()
+
+    # 1. Test broad popular query 'ขอดูตัวขายดีหน่อย'
+    res_popular = ps.search_products("ขอดูตัวขายดีหน่อย", top_k=5)
+    assert len(res_popular) > 0
+    # Assert top-1 product has significant sales volume
+    assert res_popular[0].get("sales_volume", 0) > 0
+
+    # 2. Test intent-specific popular query 'ขอดูเสื้อโปโลตัวฮิต'
+    res_polo_popular = ps.search_products("ขอดูเสื้อโปโลตัวฮิต", top_k=5)
+    assert len(res_polo_popular) > 0
+    assert any("polo" in item["category"].lower() or "โปโล" in item["category"].lower() or "polo" in item["name"].lower() for item in res_polo_popular)
+
+
+def test_product_service_fair_random_sampling_session_history():
+    from app.services.product_service import ProductService
+    ps = ProductService.get_instance()
+    
+    session_history = []
+    # Batch 1 sampling
+    sample_1 = ps.get_fair_top5_recommendations(session_history=session_history)
+    assert len(sample_1) == 5
+    ids_1 = set(p["product_id"] for p in sample_1)
+    
+    # Batch 2 sampling - should not contain any items from batch 1
+    sample_2 = ps.get_fair_top5_recommendations(session_history=session_history)
+    assert len(sample_2) == 5
+    ids_2 = set(p["product_id"] for p in sample_2)
+    
+    assert len(ids_1.intersection(ids_2)) == 0
+
+
+

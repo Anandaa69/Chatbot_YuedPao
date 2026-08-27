@@ -76,6 +76,11 @@ STYLE_VIBE_KEYWORDS_MAP = {
     "chic": ["สวย", "สวยๆ", "เรียบหรู", "ดูดี", "สุภาพ", "ใส่ทำงาน", "ชิค", "ชิคๆ", "คัตติ้งเนี๊ยบ"]
 }
 
+POPULAR_KEYWORDS = [
+    "ขายดี", "ขายดีสุด", "ฮิต", "ฮิตๆ", "ยอดฮิต", "นิยม", "ยอดนิยม",
+    "best seller", "bestseller", "top seller", "ตัวขายดี", "สินค้าขายดี", "ตัวฮิต"
+]
+
 KODNUM_SYNONYMS = {
     "Kodnum": "โคตรนุ่ม โคตนุ่ม โคตรนุม โคตนุม"
 }
@@ -196,14 +201,24 @@ class ProductService:
                 conn.close()
                 return
 
-            # Check if is_available column exists in products table
+            # Check if is_available and sales_volume columns exist in products table
             cursor.execute("PRAGMA table_info(products);")
             columns = [col[1] for col in cursor.fetchall()]
 
-            if "is_available" in columns:
-                cursor.execute("SELECT product_id, name, category, fabric_collection, style_fit, price, description, image_url, product_url, is_available FROM products WHERE is_available = 1")
-            else:
-                cursor.execute("SELECT product_id, name, category, fabric_collection, style_fit, price, description, image_url, product_url FROM products")
+            has_avail = "is_available" in columns
+            has_sales = "sales_volume" in columns
+
+            select_cols = ["product_id", "name", "category", "fabric_collection", "style_fit", "price", "description", "image_url", "product_url"]
+            if has_avail:
+                select_cols.append("is_available")
+            if has_sales:
+                select_cols.append("sales_volume")
+
+            sql_stmt = f"SELECT {', '.join(select_cols)} FROM products"
+            if has_avail:
+                sql_stmt += " WHERE is_available = 1"
+
+            cursor.execute(sql_stmt)
             product_rows = cursor.fetchall()
             
             cursor.execute("SELECT product_id, GROUP_CONCAT(DISTINCT color_name) FROM product_variants GROUP BY product_id")
@@ -218,7 +233,18 @@ class ProductService:
             p_id = r[0]
             colors_str = variant_color_map.get(p_id, "") or ""
             p_url = r[8] or f"https://www.yuedpao.com/physical/{p_id}"
-            p_avail = r[9] if len(r) > 9 else 1
+
+            cur_idx = 9
+            p_avail = 1
+            if has_avail:
+                p_avail = r[cur_idx] if len(r) > cur_idx else 1
+                cur_idx += 1
+            
+            p_sales = 0
+            if has_sales:
+                p_sales = r[cur_idx] if len(r) > cur_idx and r[cur_idx] is not None else 0
+                cur_idx += 1
+
             self.products.append({
                 "product_id": p_id,
                 "name": r[1],
@@ -230,7 +256,8 @@ class ProductService:
                 "image_url": r[7] or "",
                 "product_url": p_url,
                 "colors": colors_str,
-                "is_available": p_avail
+                "is_available": p_avail,
+                "sales_volume": int(p_sales)
             })
 
         self.documents = []
@@ -265,11 +292,12 @@ class ProductService:
                     expansions.append(syns)
 
             synonym_str = f" | คำค้นหาพ้อง: {' '.join(set(expansions))}" if expansions else ""
+            sales_str = f" | ยอดขาย: {p['sales_volume']} ชิ้น สินค้าขายดี ยอดฮิต" if p["sales_volume"] > 50 else ""
 
             doc_text = (
                 f"passage: สินค้า: {clean_name} | หมวดหมู่: {clean_cat} | "
                 f"เทคโนโลยีผ้า: {p['fabric']} | ทรงเสื้อ: {p['style']} | ราคา: ฿{p['price']} | "
-                f"{colors_info}{synonym_str} | รายละเอียดและจุดเด่น: {clean_desc}"
+                f"{colors_info}{sales_str}{synonym_str} | รายละเอียดและจุดเด่น: {clean_desc}"
             )
             self.documents.append(doc_text)
             self.doc_ids.append(f"prod_{p['product_id']}")
@@ -301,7 +329,8 @@ class ProductService:
                 "product_url": p["product_url"],
                 "colors": color_val,
                 "gender": gender_val,
-                "is_available": p.get("is_available", 1)
+                "is_available": p.get("is_available", 1),
+                "sales_volume": p.get("sales_volume", 0)
             })
 
     def _classify_product_gender(self, name: str, category: str, style: str, description: str) -> str:
@@ -409,11 +438,15 @@ class ProductService:
             return "female"
         return None
 
+    def _detect_query_popular(self, query: str) -> bool:
+        q_lower = query.lower()
+        return any(kw in q_lower for kw in POPULAR_KEYWORDS)
+
     def search_products(self, raw_query: str, top_k: int = 15, k_constant: int = 60, return_dict: bool = False) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Main entry point for product retrieval. Combines BM25 and Vector DB search 
         using Reciprocal Rank Fusion (RRF), with integrated Intent Boost, Color Match Boost,
-        Gender Filtering, and Smart Price Fallback.
+        Gender Filtering, Sales Volume Boost, and Smart Price Fallback.
         """
         if not self.documents:
             return []
@@ -423,8 +456,9 @@ class ProductService:
         requested_colors = self._detect_query_colors(raw_query)
         requested_gender = self._detect_query_gender(raw_query)
         requested_vibes = self._detect_query_style_vibes(raw_query)
+        is_popular = self._detect_query_popular(raw_query)
 
-        print(f"🔎 [Search Engine Debug] Query: '{raw_query}' ──► Gender Filter: '{requested_gender}' | Style Vibes: {requested_vibes} | Intents: {detected_intents} | Colors: {requested_colors} | Max Price: {max_price}")
+        print(f"🔎 [Search Engine Debug] Query: '{raw_query}' ──► Popular Filter: '{is_popular}' | Gender Filter: '{requested_gender}' | Style Vibes: {requested_vibes} | Intents: {detected_intents} | Colors: {requested_colors} | Max Price: {max_price}")
 
         # 1. BM25 ranks
         bm25_scores = [0.0] * len(self.documents)
@@ -546,7 +580,15 @@ class ProductService:
                 kids_boost = 0.15 if (item_is_kids and not query_has_kids) else 1.0
                 crop_boost = 0.40 if (item_is_crop and not query_has_crop) else 1.0
 
-                final_score = base_score * intent_boost * color_boost * style_vibe_boost * gender_match_boost * kids_boost * crop_boost
+                # Sales Volume / Popularity Match Boost
+                sales_vol = meta.get("sales_volume", 0)
+                sales_vol_boost = 1.0
+                if is_popular:
+                    sales_vol_boost = 1.0 + min(np.log1p(sales_vol) * 0.25, 1.8)
+                else:
+                    sales_vol_boost = 1.0 + min(np.log1p(sales_vol) * 0.02, 0.15)
+
+                final_score = base_score * intent_boost * color_boost * style_vibe_boost * gender_match_boost * kids_boost * crop_boost * sales_vol_boost
 
                 scores[doc_id] = {
                     "score": final_score,
