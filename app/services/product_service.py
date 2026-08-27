@@ -188,6 +188,15 @@ class ProductService:
     def reload_and_index(self):
         """Forces reloading products from SQLite DB and re-building ChromaDB + BM25 indices."""
         self._load_products_from_db()
+        if not self.chroma_client and chromadb and self.bert_model and self.documents:
+            try:
+                base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+                chroma_path = os.path.join(base_dir, "data", "chroma")
+                os.makedirs(chroma_path, exist_ok=True)
+                self.chroma_client = chromadb.PersistentClient(path=chroma_path)
+            except Exception as e:
+                print(f"⚠️ Warning: Could not initialize ChromaDB client in reload_and_index: {e}")
+
         if self.chroma_client and self.bert_model and self.documents:
             collection_name = "yuedpao_products_e5_search"
             try:
@@ -200,7 +209,7 @@ class ProductService:
             )
             self._index_chromadb()
 
-        if word_tokenize and self.documents:
+        if self.documents:
             self._build_bm25_index()
         return self.documents
 
@@ -397,16 +406,36 @@ class ProductService:
         )
 
     def _bm25_tokenizer(self, text: str) -> List[str]:
-        if not word_tokenize:
-            return [t.strip().lower() for t in text.split() if t.strip()]
+        if word_tokenize:
+            clean_doc = text.replace("passage: ", "")
+            tokens = word_tokenize(clean_doc, engine="newmm")
+            return [t.strip().lower() for t in tokens if t.strip()]
+        
+        # High-precision Thai N-Gram Tokenizer (matches sub-words like 'พะยูน' without external NLP library)
         clean_doc = text.replace("passage: ", "")
-        tokens = word_tokenize(clean_doc, engine="newmm")
-        return [t.strip().lower() for t in tokens if t.strip()]
+        raw_tokens = re.findall(r'[a-zA-Z0-9%]+|[\u0E00-\u0E7F]+', clean_doc)
+        final_tokens = []
+        
+        for tok in raw_tokens:
+            if re.match(r'^[a-zA-Z0-9%]+$', tok):
+                final_tokens.append(tok.lower())
+            else:
+                final_tokens.append(tok.lower())
+                tok_len = len(tok)
+                for n in range(2, 8):
+                    for i in range(tok_len - n + 1):
+                        final_tokens.append(tok[i:i+n])
+                    
+        return final_tokens
 
     def _build_bm25_index(self):
-        from rank_bm25 import BM25Okapi
-        self.bm25_corpus = [self._bm25_tokenizer(doc) for doc in self.documents]
-        self.bm25_model = BM25Okapi(self.bm25_corpus)
+        try:
+            from rank_bm25 import BM25Okapi
+            self.bm25_corpus = [self._bm25_tokenizer(doc) for doc in self.documents]
+            self.bm25_model = BM25Okapi(self.bm25_corpus)
+        except ImportError:
+            self.bm25_model = None
+            self.bm25_corpus = []
 
     def _extract_price_bounds(self, query: str) -> Tuple[Optional[int], Optional[int]]:
         """Extracts (min_price, max_price) boundaries from raw query string."""
@@ -653,8 +682,9 @@ class ProductService:
                 query_has_bra = any(b in query_lower for b in ["บรา", "bra", "สปอร์ตบรา"])
                 query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
 
-                item_is_kids = "kid" in item_haystack or "เด็ก" in item_haystack
-                item_is_crop = "crop" in item_haystack or "ครอป" in item_haystack
+                item_title_cat = f"{meta['name']} {meta.get('category', '')} {meta.get('style', '')}".lower()
+                item_is_kids = "kid" in item_title_cat or "เด็ก" in item_title_cat
+                item_is_crop = "crop" in item_title_cat or "ครอป" in item_title_cat
                 item_cat_upper = meta.get("category", "").upper()
 
                 # Symmetric Kids Boost / Adult Demotion

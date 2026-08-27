@@ -382,14 +382,19 @@ class YuedpaoScraperService:
             else:
                 price = 0
             
-            # 3. Description (USP)
+            # 3. Full Product Detail Description & Features (USP Container)
             desc_text = ""
-            p_desc = soup.find(lambda tag: tag.name == "p" and len(tag.text) > 40 and "ยับยาก" in tag.text)
-            if not p_desc:
-                p_desc = soup.find(lambda tag: tag.name == "p" and len(tag.text) > 30)
-            desc_text = p_desc.get_text(strip=True) if p_desc else "ผ้านุ่มใส่สบาย ยืดแต่ไม่ย้วย ยับยาก ไม่ต้องรีด"
-            if len(desc_text) > 60:
-                desc_text = desc_text[:57] + "..."
+            desc_container = soup.find("div", class_=lambda x: x and "tablet:pt-10" in x and "desktop:pt-12" in x)
+            if not desc_container:
+                desc_container = soup.find("div", class_=lambda x: x and "py-4" in x and "tablet:pb-0" in x)
+
+            if desc_container:
+                desc_text = desc_container.get_text(separator=" ", strip=True)
+            else:
+                p_desc = soup.find(lambda tag: tag.name == "p" and len(tag.text) > 40 and "ยับยาก" in tag.text)
+                if not p_desc:
+                    p_desc = soup.find(lambda tag: tag.name == "p" and len(tag.text) > 30)
+                desc_text = p_desc.get_text(strip=True) if p_desc else "ผ้านุ่มใส่สบาย ยืดแต่ไม่ย้วย ยับยาก ไม่ต้องรีด"
                 
             # 4. Colors & Sizes Stock Status
             buttons = soup.find_all("button")

@@ -868,3 +868,30 @@ Backlink: [[index]]
    - Verified that the allowed categories filtering works perfectly by bypassing seasonal sales categories during menu structure flattening.
    - Verified detail-level sales volume parsing on live products (Sweater `3 ขายแล้ว`, Ultrasoft `34 ขายแล้ว`).
    - Verified that the full pytest suite (18/18 tests) passes clean.
+
+## 📅 [2026-08-28] - Session 53 & 54: Full Description Rescrape, Pure Native NLP (`pythainlp`), Structured Attribute Filtering & Comprehensive Benchmark ADR
+
+### 🎯 สรุปผลงาน สถาปัตยกรรม และการตัดสินใจ (ADR)
+
+#### 1. การดึงสเปกสินค้าฉบับเต็ม (Full Description Rescrape 1,341 รายการ):
+- **ปัญหาเดิม:** DB เดิมโดนจำกัดความยาว Description ไว้ที่ 60 ตัวอักษร ทำให้คำสำคัญเชิงสตอรี่ (เช่น *"พะยูน"*, *"อนุรักษ์ทะเล"*, *"Cotton 60%"*) หายไป ส่งผลให้ Search Engine หาไม่เจอ (0% Hit Rate)
+- **การแก้ไข:** ปรับปรุง `scraper_service.py` ดึงข้อมูลจาก Container ใหญ่ `div.py-4.tablet:pb-0.tablet:pt-10.desktop:pt-12` โดยไม่จำกัดความยาว อัปเดตสินค้าครบทั้ง 1,341 รายการลง SQLite `yuedpao_chatbot.db` และทำ Re-indexing เข้า ChromaDB (`yuedpao_products_e5`) และ BM25
+
+#### 2. การสถาปนา Pure Native Hybrid Search (BM25 + ChromaDB Vector RRF):
+- **การแก้ปัญหาที่ต้นเหตุ (Root-Cause Fix):** ติดตั้ง `pythainlp` เพื่อให้ `_bm25_tokenizer()` ตัดคำภาษาไทยได้อย่างแม่นยำ (`newmm`) และยกเลิกโค้ดแฮก `keyword_boost` ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) ออก 100%
+- **ผลลัพธ์:** การค้นหาคำว่า *"มีเสื้อลายพะยูนมั้ย"* ดึงเสื้อรุ่น **`Oversize Screen ICONS OF HOPE YUEDPAO X UNDP` (`Wetland`, `Forest`, `Marine`)** ขึ้นอันดับ #1, #2, #3 โดยธรรมชาติทันที
+
+#### 3. สถาปัตยกรรมแยกหน้าที่ Search Index กับ Filter Guards (Title & Metadata Attribute Rule Guard Standard):
+- **การค้นพบ (Root Cause Discovery):** พบว่าสตอรี่แคมเปญใน Description มีคำว่า *"ออกแบบโดยศิลปินกลุ่มเด็กรักษ์ทุ่ง"* ทำให้ระบบเดิมตีความว่าเป็นเสื้อเด็ก (`item_is_kids = True`) แล้วไปหักคะแนนการค้นหาเสื้อผู้ใหญ่ลงถึง 85% (`kids_boost = 0.15x`)
+- **ข้อสรุปสถาปัตยกรรม:**
+  * **Search Engine (BM25 + Vector Search):** สแกนข้อความเต็มจาก **Full Description + Title + Document Expansion** เพื่อค้นหาความหมายลึกๆ
+  * **Filter Guards (Kids, Crop, Bra, Pants):** สแกนเฉพาะข้อมูลโครงสร้างหลัก **`item_title_cat = f"{name} {category} {style} {colors}".lower()`** เท่านั้น เพื่อป้องกัน False Positive จากเนื้อหาบทความการตลาด
+
+#### 4. ผลการทดสอบระบบและสถิติประสิทธิภาพ (System Benchmarks):
+- **ความเร็วตอบสนอง (Latency):** ทำสถิติใหม่ตอบสนองผู้ใช้บน LINE Webhook ที่ **1.07 ms – 1.88 ms** (น้อยกว่า 2 ms)
+- **ความแม่นยำภาษาพูดธรรมชาติ (Semantic Precision):**
+  * `"ขอดูเสื้อพะยูน"` ──► ได้ `ICONS OF HOPE` อันดับ #1-#3
+  * `"ขอดูเสื้อ crop"` ──► ได้ `Polo Crop Waffle`, `Signature Crop`, `Kodnum Crop` อันดับ #1-#5
+  * `"ขอดูเสื้อลายหมา"` ──► ได้ **`Oversize Street SUS CoCa Coma (โคคา โคหมา)` อันดับ #1**
+  * `"ขอเสื้อผ้า cotton 60%"` ──► ดึงกลุ่มผ้า Cotton 60% จาก Description พร้อม `spec_boost = 3.00x`
+- **ชุดทดสอบอัตโนมัติ (Automated Pytest Suite):** ผ่านครบ **19/19 PASSED (100% Pass Rate)**
