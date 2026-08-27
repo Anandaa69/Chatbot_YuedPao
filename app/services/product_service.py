@@ -120,7 +120,7 @@ INTENT_MAP_KEYWORDS = {
     "sleeveless": ["แขนกุด", "เสื้อกล้าม", "โยคะ"],
     "running": ["วิ่ง", "ออกกำลังกาย", "ระบายเหงื่อ", "รันนิ่ง", "เดินป่า", "ไม่มีกลิ่นเหงื่อ"],
     "jeans": ["ยีนส์", "เกงยีนส์", "กางเกงยีนส์", "เดนิม"],
-    "bag": ["กระเป๋า", "กระเป๋าสะพาย", "กระเป๋าถือ", "bag", "bagg", "crossbody", "carrybag", "tote"],
+    "bag": ["กระเป๋า", "กระเป็า", "กระเปา", "กระเป๋าสะพาย", "กระเป๋าถือ", "bag", "bagg", "crossbody", "carrybag", "tote"],
     "pants": ["กางเกง", "กางเกงขาสั้น", "กางเกงขายาว", "ขาสั้น", "ขายาว", "คาร์โก้", "cargo", "shorts", "pants"]
 }
 
@@ -695,14 +695,20 @@ class ProductService:
 
                 crop_boost = 0.40 if (item_is_crop and not query_has_crop) else 1.0
 
-                # Category & Item Type Mismatch Demotion
                 category_mismatch_boost = 1.0
                 query_has_pants = any(k in query_lower for k in ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
+                query_has_bag = any(b in query_lower for b in ["กระเป๋า", "กระเป็า", "กระเปา", "bag", "bagg", "crossbody", "tote", "carrybag"])
 
                 if query_has_bra:
                     item_is_bra = any(b in item_haystack for b in ["บรา", "bra", "สปอร์ตบรา", "rib bra"])
                     if item_is_bra:
                         category_mismatch_boost = 2.50
+                    else:
+                        category_mismatch_boost = 0.01
+                elif query_has_bag:
+                    item_is_bag = any(b in item_title_cat for b in ["bag", "กระเป๋า"])
+                    if item_is_bag:
+                        category_mismatch_boost = 3.50
                     else:
                         category_mismatch_boost = 0.01
                 elif query_not_shirt:

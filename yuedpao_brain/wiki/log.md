@@ -887,6 +887,18 @@ Backlink: [[index]]
   * **Search Engine (BM25 + Vector Search):** สแกนข้อความเต็มจาก **Full Description + Title + Document Expansion** เพื่อค้นหาความหมายลึกๆ
   * **Filter Guards (Kids, Crop, Bra, Pants):** สแกนเฉพาะข้อมูลโครงสร้างหลัก **`item_title_cat = f"{name} {category} {style} {colors}".lower()`** เท่านั้น เพื่อป้องกัน False Positive จากเนื้อหาบทความการตลาด
 
+
+- **การเพิ่ม Rule Guard สำหรับหมวดหมูีกระเป๋า (`query_has_bag`) และแก้คำสะกดผิด (`กระเป็า` ไม้เตะคู้):**
+  * **ปัญหาที่พบจาก Log จริง:** ผู้ใช้พิมพ์คำว่า *"ขอดูกระเป๋าสีดำ"* แล้วระบบดึงเสื้อยืดสีดำขึ้นแทนกระเป๋า เพราะเสื้อยืดสีดำได้คะแนน Color Match + Sales Volume สูงกว่า โดยที่ระบบเดิมยังไม่มี Rule Guard คอยกดคะแนนเสื้อยืดเมื่อผู้ใช้ถามหากระเป๋า และคำว่า *"กระเป็า"* สะกดผิดทำให้ดัก Intent ไม่อยู่
+  * **การแก้ไขใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py):**
+    1. เพิ่มคำสะกดผิด `"กระเป็า"` (ไม้เตะคู้) ลงใน `INTENT_MAP_KEYWORDS["bag"]`
+    2. เพิ่ม `query_has_bag` ใน Category Mismatch Guard ──► ให้โบนัสกระเป๋า **3.50x Boost** และกดคะแนนสินค้าที่ไม่ใช่กระเป๋าลงเหลือ **0.01x (-99% Demotion)**
+  * **ผลการทดสอบ:** ทั้งคำสะกดผิด `"ขอดูกระเป็าสีดำ"` และคำสะกดถูก `"ขอดูกระเป๋าสีดำ"` ได้ผลลัพธ์อันดับ 1-3 เป็นกระเป๋าตรงเป๊ะ (`The Bagg Fluffy Gozy Bag`, `The Bagg Canvas Core Bag`, `Mini Crossbody Bag`) โดยไม่มีเสื้อยืดปะปน
+
+
+- **การเพิ่มคลังคำศัพท์หมวดหมู่ภาษาไทย (25 คำ) ลงใน `domain_vocab.json`:**
+  * **รายละเอียด:** เพิ่มคำศัพท์หมวดหมู่ภาษาไทยพื้นฐาน (`กระเป๋า`, `กางเกง`, `เสื้อ`, `ถุงเท้า`, `หมวก`, `บรา`, `แจ็คเก็ต`, `ยีนส์`) ลงใน `app/data/domain_vocab.json` เพื่อให้ Tier 0 Edit Distance รองรับการแก้ไขคำสะกดผิดหมวดหมู่สินค้าภาษาไทยได้สมบูรณ์ 100%
+
 #### 4. ผลการทดสอบระบบและสถิติประสิทธิภาพ (System Benchmarks):
 - **ความเร็วตอบสนอง (Latency):** ทำสถิติใหม่ตอบสนองผู้ใช้บน LINE Webhook ที่ **1.07 ms – 1.88 ms** (น้อยกว่า 2 ms)
 - **ความแม่นยำภาษาพูดธรรมชาติ (Semantic Precision):**
