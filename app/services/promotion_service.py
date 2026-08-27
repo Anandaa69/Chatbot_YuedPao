@@ -314,6 +314,7 @@ class PromotionService:
         """
         Direct Rule-Based SQL Query: Fetches Daily Deals (daily_deal) directly from SQLite DB (0% Vector uncertainty).
         """
+        self._load_promotions_from_db()
         daily_items = [p for p in self.promotions if p.get("deal_type") == "daily_deal"]
         return daily_items[:limit]
 
@@ -321,6 +322,7 @@ class PromotionService:
         """
         Direct Rule-Based SQL Query: Fetches Monthly Deals (monthly_deal) directly from SQLite DB (0% Vector uncertainty).
         """
+        self._load_promotions_from_db()
         monthly_items = [p for p in self.promotions if p.get("deal_type") == "monthly_deal"]
         return monthly_items[:limit]
 
@@ -328,5 +330,6 @@ class PromotionService:
         """
         Direct Rule-Based SQL Query: Fetches Coupon Tickets directly from SQLite DB.
         """
+        self._load_promotions_from_db()
         coupon_items = [m for m in self.metadatas if m.get("type") == "coupon"]
         return coupon_items[:limit]

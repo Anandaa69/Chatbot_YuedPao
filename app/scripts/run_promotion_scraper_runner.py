@@ -32,7 +32,7 @@ def fetch_home_countdown_links(driver: webdriver.Chrome) -> List[Dict[str, str]]
     links_info = []
     seen_hrefs = set()
     
-    for el in countdown_elements:
+    for idx, el in enumerate(countdown_elements):
         href = el.get_attribute("href")
         if not href or href in seen_hrefs:
             continue
@@ -40,11 +40,20 @@ def fetch_home_countdown_links(driver: webdriver.Chrome) -> List[Dict[str, str]]
         
         try:
             section = el.find_element(By.XPATH, "./ancestor::div[contains(@class, 'flex')]")
-            header_text = section.text.split("\n")[0]
+            sec_text = section.text
         except:
-            header_text = "ดีลพิเศษ"
+            sec_text = ""
             
-        deal_type = "daily_deal" if "ประจำวัน" in header_text else ("monthly_deal" if "ประจำเดือน" in header_text else "special_deal")
+        if "ประจำวัน" in sec_text or idx == 0:
+            deal_type = "daily_deal"
+            header_text = "ดีลพิเศษประจำวัน"
+        elif "ประจำเดือน" in sec_text or idx == 1:
+            deal_type = "monthly_deal"
+            header_text = "ดีลพิเศษประจำเดือน"
+        else:
+            deal_type = "special_deal"
+            header_text = "ดีลพิเศษประจำสัปดาห์"
+
         links_info.append({
             "title": header_text,
             "deal_type": deal_type,

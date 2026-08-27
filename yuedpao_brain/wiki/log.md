@@ -917,6 +917,37 @@ Backlink: [[index]]
     5. 5️⃣ `Ultra Flow Running Rush Bag` (฿250) — **ยอดขาย 11 ชิ้น**
     *(เรียงลำดับยอดขายสะสมจริงจากมากไปน้อย 41 ➔ 22 ➔ 15 ➔ 14 ➔ 11 ชิ้น สมบูรณ์แบบ 100%)*
 
+
+- **การรันอัปเดตข้อมูลดีลโปรโมชันและ Re-indexing (Promotions & Deals Update ADR):**
+  * รันสคริปต์ [app/scripts/update_deals.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/update_deals.py) อัปเดตประเภทโปรโมชัน 21 รายการ (`daily_deal` และ `monthly_deal`) ลงใน SQLite `yuedpao_chatbot.db`
+  * สั่งงาน `PromotionService.reload_and_index()` เพื่อทำ Re-indexing ดีลและคูปองส่วนลดรวม **26 รายการ** เข้าสู่ ChromaDB `yuedpao_promotions_e5` และ BM25 Search Index
+
+
+- **การสแครปโปรโมชันสดจากหน้าเว็บจริงและการทำ Dual-Layer Indexing (Rule 9 Standard):**
+  * สั่งงาน Selenium Headless Scraper [app/scripts/run_promotion_scraper_runner.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/run_promotion_scraper_runner.py) ดึงโปรโมชันสดจากหน้าเว็บ `https://www.yuedpao.com/countdown/`
+  * สแครปข้อมูลสินค้าโปรโมชันเชิงลึก (รูปภาพหลัก, รูปแกลเลอรี, ตารางไซส์, สีคงเหลือ, ราคาดีล) สำเร็จรวม 16 รายการ จัดเก็บลง SQLite `yuedpao_chatbot.db` (ตาราง `promotions`)
+  * สั่งงาน `PromotionService.reload_and_index()` เพื่ออัปเดตข้อมูลเข้าสู่ ChromaDB Vector DB (`yuedpao_promotions_e5`) และ BM25 Search Index รวมทั้งสิ้น 21 รายการ (คูปอง + ดีลโปรโมชันสด)
+
+
+- **แก้ไขปัญหากลุ่มประเภทดีลโปรโมชันสแครปสด (`daily_deal` / `monthly_deal`):**
+  * **สาเหตุ:** ข้อความปุ่ม Header บนเว็บติดคำว่า *"เข้าสู่ระบบ"* ทำให้ `deal_type` ถูกจัดเป็น `special_deal` ทั้งหมด
+  * **แก้ไข:** ปรับปรุง [app/scripts/run_promotion_scraper_runner.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/run_promotion_scraper_runner.py) อ่านลำดับหมวดการ์ดบนหน้าเว็บ YuedPao โดยตรง ──► หมวดชุดที่ 1 เป็น `daily_deal` (ดีลประจำวัน 4 รายการ `Ultra Flow Running Shorts`) และหมวดชุดที่ 2 เป็น `monthly_deal` (ดีลประจำเดือน 12 รายการ `Y Collection Polo` & `Y Cargo Short`)
+  * **ผลลัพธ์:** ล้างข้อมูลเก่า 100% บันทึกดีลสดใหม่ 16 รายการลง SQLite DB และ Re-index เข้า `PromotionService` รวม 21 รายการสมบูรณ์แบบ
+
+
+- **การแก้ปัญหาการแสดงผล Flex Cards ของ "ขอดีลวันนี้" และ "ขอดีลเดือนนี้" (Daily & Monthly Deals Routing ADR):**
+  * **สาเหตุที่ขึ้น Flex Cards: 0:** เกิดจากการรันสแครปสดก่อนหน้านี้ บันทึก `deal_type` เป็น `special_deal` ทั้งหมดโดยไม่ได้ระบุเป็น `daily_deal` หรือ `monthly_deal` ทำให้เมื่อผู้ใช้ถามหาดีลประจำวัน/ดีลประจำเดือน ฟังก์ชัน `get_daily_deals()` และ `get_monthly_deals()` คืนค่าเป็น 0 รายการ
+  * **การแก้ไข:** อัปเดตสคริปต์ [app/scripts/run_promotion_scraper_runner.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/run_promotion_scraper_runner.py) และรัน [app/scripts/update_deals.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/update_deals.py) แมป `daily_deal` (ดีลประจำวัน 4 รายการ `Ultra Flow Running Shorts`) และ `monthly_deal` (ดีลประจำเดือน 12 รายการ `Y Collection Polo` & `Y Cargo Short`) ลงใน SQLite DB
+  * **ผลการทดสอบการตอบกลับสด:**
+    - `"ขอดีลวันนี้"` ──► **Flex Cards: 4 รายการ** (`Ultra flow Running Shorts` สี White, Black, Light Grey, Navy Blue)
+    - `"ขอดีลเดือนนี้"` ──► **Flex Cards: 6 รายการ** (`Y Collection Polo 2025` & `Polo LongSleeve`)
+    - ผ่านการทดสอบ PyTest อัตโนมัติ **19/19 PASSED (100%)**
+
+
+- **การแก้ไขปัญหา Memory Staleness ใน PromotionService (Live Server Fresh Load ADR):**
+  * **สาเหตุ:** เซิร์ฟเวอร์ที่เปิดรันค้างไว้จำค่า Singleton `self.promotions` จาก RAM ก่อนการ Re-index
+  * **การแก้ไข:** ปรับปรุงใน [app/services/promotion_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/promotion_service.py) เพิ่ม `self._load_promotions_from_db()` ลงใน `get_daily_deals()`, `get_monthly_deals()`, และ `get_all_coupons()` เพื่อโหลดข้อมูลล่าสุดตรงจาก SQLite `yuedpao_chatbot.db` ทุกครั้งที่มี Request สด
+
 #### 4. ผลการทดสอบระบบและสถิติประสิทธิภาพ (System Benchmarks):
 - **ความเร็วตอบสนอง (Latency):** ทำสถิติใหม่ตอบสนองผู้ใช้บน LINE Webhook ที่ **1.07 ms – 1.88 ms** (น้อยกว่า 2 ms)
 - **ความแม่นยำภาษาพูดธรรมชาติ (Semantic Precision):**
