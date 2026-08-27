@@ -328,12 +328,21 @@ class YuedpaoScraperService:
             if price_p:
                 price_text = price_p.get_text(strip=True)
             else:
-                p_fallback = soup.find(lambda tag: tag.name in ["p", "div", "span"] and "฿" in tag.text and len(tag.text) < 30)
+                p_fallback = soup.find(lambda tag: tag.name in ["p", "div", "span"] and "฿" in tag.text and len(tag.text) < 50)
                 if p_fallback:
                     price_text = p_fallback.get_text(strip=True)
             
-            price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
-            price = min(price_nums) if price_nums else 0
+            baht_match = re.search(r"฿\s*([\d,.]+)", price_text)
+            if baht_match:
+                clean_num_str = baht_match.group(1).replace(",", "")
+                try:
+                    price = float(clean_num_str) if "." in clean_num_str else int(clean_num_str)
+                except ValueError:
+                    price = 0
+            else:
+                price_nums = [int(n) for n in re.findall(r"\d+", price_text)]
+                valid_nums = [n for n in price_nums if n >= 50]
+                price = min(valid_nums) if valid_nums else (min(price_nums) if price_nums else 0)
             
             # 3. Description (USP)
             desc_text = ""
@@ -479,7 +488,11 @@ class YuedpaoScraperService:
 
     def _infer_category(self, name: str, url: str) -> str:
         name_lower = name.lower()
-        if "คอกลม" in name or "round neck" in name_lower:
+        if "babytee" in name_lower or "baby tee" in name_lower or "เบบี้ที" in name_lower:
+            return "เสื้อยืด BabyTee"
+        elif "crop" in name_lower or "ครอป" in name_lower:
+            return "เสื้อยืด Crop"
+        elif "คอกลม" in name or "round neck" in name_lower:
             return "เสื้อยืดคอกลม"
         elif "คอวี" in name or "v-neck" in name_lower:
             return "เสื้อยืดคอวี"
@@ -503,10 +516,12 @@ class YuedpaoScraperService:
 
     def _infer_style_fit(self, name: str) -> str:
         name_lower = name.lower()
-        if "oversize" in name_lower:
-            return "Oversize"
-        elif "crop" in name_lower:
+        if "babytee" in name_lower or "baby tee" in name_lower or "เบบี้ที" in name_lower:
+            return "BabyTee"
+        elif "crop" in name_lower or "ครอป" in name_lower:
             return "Crop"
+        elif "oversize" in name_lower:
+            return "Oversize"
         elif "unisex" in name_lower:
             return "Unisex"
         elif "slim" in name_lower:

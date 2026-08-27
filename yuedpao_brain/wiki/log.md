@@ -9,6 +9,38 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-27] - Session 9: Fix BabyTee Category & Style Misclassification ADR
+
+### 🎯 Key Accomplishments
+1. **Root Cause Analysis & Diagnosis**:
+   - Diagnosed why 16 BabyTee products were incorrectly stored in `yuedpao_chatbot.db` with `category = 'Oversize'` and `style_fit = 'Unisex'`.
+   - Identified 2 underlying issues:
+     a) Scraper assigned `category = 'Oversize'` based on catalog menu URL names during lazy loading crawl.
+     b) `_infer_style_fit()` and `_infer_category()` in [scraper_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/scraper_service.py) lacked explicit handlers for `babytee` / `เบบี้ที` keywords, defaulting to `Unisex`.
+2. **Database Data Correction**:
+   - Updated all 16 BabyTee products in `yuedpao_chatbot.db` setting `category = 'เสื้อยืด BabyTee'` and `style_fit = 'BabyTee'`.
+3. **Scraper Service Code Upgrade**:
+   - Updated `_infer_category()` and `_infer_style_fit()` in [scraper_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/scraper_service.py) adding explicit keyword checks for `babytee`, `เบบี้ที`, `crop`, and `ครอป`.
+4. **Search Verification & Vector DB Refresh**:
+   - Re-indexed ChromaDB and BM25 index via `ProductService`. Confirmed `BabyTee` search query returns Top-5 items with clean `Category: เสื้อยืด BabyTee` and `Style: BabyTee`.
+
+---
+
+## 📅 [2026-08-27] - Session 8: Product Availability Filtering (`is_available`) & Vector DB Re-indexing
+
+### 🎯 Key Accomplishments
+1. **Database Schema & `is_available` Column Support**:
+   - Identified 287 out-of-stock / unavailable products out of 695 total products in `yuedpao_chatbot.db`.
+   - Updated `ProductService._load_products_from_db()` in [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) to inspect schema dynamically (`PRAGMA table_info(products)`) and filter products strictly `WHERE is_available = 1`.
+2. **ChromaDB & BM25 Search Index Auto-Invalidation**:
+   - Reduced active indexed document pool from 695 down to **408 active available products**.
+   - Triggered clean auto-re-indexing of ChromaDB vector collection (`yuedpao_products_e5_search`) and BM25 index to prevent recommending out-of-stock items to users.
+3. **Automated Unit Testing & Verification**:
+   - Added `test_product_service_is_available_filtering()` in [test_services.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_services.py) asserting all loaded products have `is_available == 1`.
+   - Verified 100% test pass rate across the service test suite.
+
+---
+
 ## 📅 [2026-08-26] - Session 7: Coupon Ticket & Terms Modal Scraper (`04_coupon_scraper.ipynb`)
 
 ### 🎯 Key Accomplishments

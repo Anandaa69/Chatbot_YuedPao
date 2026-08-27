@@ -50,3 +50,12 @@ def test_tiered_router_size_recommendation():
     assert res["intent"] == "size_recommendation"
     assert "reply_text" in res
     assert res["flex_payload"] is not None
+
+
+def test_product_service_is_available_filtering():
+    from app.services.product_service import ProductService
+    ps = ProductService.get_instance()
+    assert len(ps.products) > 0
+    for prod in ps.products:
+        assert prod.get("is_available", 1) == 1
+

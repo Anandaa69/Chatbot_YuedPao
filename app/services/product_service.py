@@ -186,7 +186,14 @@ class ProductService:
                 conn.close()
                 return
 
-            cursor.execute("SELECT product_id, name, category, fabric_collection, style_fit, price, description, image_url, product_url FROM products")
+            # Check if is_available column exists in products table
+            cursor.execute("PRAGMA table_info(products);")
+            columns = [col[1] for col in cursor.fetchall()]
+
+            if "is_available" in columns:
+                cursor.execute("SELECT product_id, name, category, fabric_collection, style_fit, price, description, image_url, product_url, is_available FROM products WHERE is_available = 1")
+            else:
+                cursor.execute("SELECT product_id, name, category, fabric_collection, style_fit, price, description, image_url, product_url FROM products")
             product_rows = cursor.fetchall()
             
             cursor.execute("SELECT product_id, GROUP_CONCAT(DISTINCT color_name) FROM product_variants GROUP BY product_id")
@@ -201,6 +208,7 @@ class ProductService:
             p_id = r[0]
             colors_str = variant_color_map.get(p_id, "") or ""
             p_url = r[8] or f"https://www.yuedpao.com/physical/{p_id}"
+            p_avail = r[9] if len(r) > 9 else 1
             self.products.append({
                 "product_id": p_id,
                 "name": r[1],
@@ -211,7 +219,8 @@ class ProductService:
                 "description": r[6] or "",
                 "image_url": r[7] or "",
                 "product_url": p_url,
-                "colors": colors_str
+                "colors": colors_str,
+                "is_available": p_avail
             })
 
         self.documents = []
@@ -281,7 +290,8 @@ class ProductService:
                 "image_url": p["image_url"],
                 "product_url": p["product_url"],
                 "colors": color_val,
-                "gender": gender_val
+                "gender": gender_val,
+                "is_available": p.get("is_available", 1)
             })
 
     def _classify_product_gender(self, name: str, category: str, style: str, description: str) -> str:
@@ -454,6 +464,8 @@ class ProductService:
                     if "crop" in detected_intents and not ("crop" in item_haystack or "ครอป" in item_haystack):
                         continue
                     if "babytee" in detected_intents and not ("babytee" in item_haystack or "เบบี้ที" in item_haystack):
+                        continue
+                    if "oversize" in detected_intents and not ("oversize" in item_haystack or "โอเวอร์ไซส์" in item_haystack or "โอเวอไซ" in item_haystack or "ทรงหลวม" in item_haystack):
                         continue
                     if "jeans" in detected_intents and not ("jeans" in item_haystack or "ยีนส์" in item_haystack or "เดนิม" in item_haystack):
                         continue
