@@ -73,8 +73,11 @@ class TieredRouter:
                     reply_text = f"พบสินค้าแบรนด์ยืดเปล่า {search_res.get('total_count', len(products))} รายการที่ตรงกับความต้องการของคุณ (อันดับ 1–{len(products)}) ครับ:"
                 flex_payload = build_product_flex_carousel(products)
             else:
-                unsupported_keywords = ["รองเท้า", "นาฬิกา", "น้ำหอม", "แว่นตา", "เข็มขัด", "แหวน", "สร้อย", "ลิป", "ครีม", "กระเป๋าตังค์"]
-                found_unsupported = [kw for kw in unsupported_keywords if kw in raw_query.lower()]
+                unsupported_keywords = ["รองเท้า", "นาฬิกา", "น้ำหอม", "แว่นตา", "เข็มขัด", "แหวน", "สร้อย", "ลิป", "กระเป๋าตังค์", "สเก็ตบอร์ด", "หูฟัง", "ตู้เย็น", "แก้วน้ำ", "หมอน", "เคสโทรศัพท์", "โน๊ตบุ๊ค"]
+                q_low = raw_query.lower()
+                found_unsupported = [kw for kw in unsupported_keywords if kw in q_low]
+                if not found_unsupported and re.search(r'(?<!สี)ครีม', q_low):
+                    found_unsupported = ["ครีม"]
                 if found_unsupported:
                     item_name = found_unsupported[0]
                     reply_text = f"ขออภัยด้วยนะครับ สินค้าประเภท '{item_name}' ปัจจุบันแบรนด์ YuedPao ยังไม่มีจำหน่ายครับ 😅 สามารถลองดูสินค้าประเภท เสื้อยืด เสื้อโปโล กางเกง หมวก หรือกระเป๋าสะพาย ของยืดเปล่าแทนได้เลยนะครับ 🛍️"

@@ -414,8 +414,14 @@ class ProductService:
         min_price = None
         max_price = None
 
-        # 1. Min Price Boundary (e.g., 'มากกว่า 500', 'เกิน 500', 'สูงกว่า 500', '500 ขึ้นไป')
-        match_min = re.search(r'(?:มากกว่า|เกิน|สูงกว่า|แพงกว่า)\s*(\d+)', query_lower)
+        # 0. Check Range Boundary (e.g., '100-200', '100 ถึง 200', '100 - 200')
+        match_range = re.search(r'(\d+)\s*[-–—toถึง]\s*(\d+)', query_lower)
+        if match_range:
+            p1, p2 = int(match_range.group(1)), int(match_range.group(2))
+            return min(p1, p2), max(p1, p2)
+
+        # 1. Min Price Boundary (e.g., 'มากกว่า 500', 'เกิน 500' [แต่ต้องไม่ใช่ 'ไม่เกิน'], 'สูงกว่า 500', '500 ขึ้นไป')
+        match_min = re.search(r'(?<!ไม่)(?:มากกว่า|เกิน|สูงกว่า|แพงกว่า)\s*(\d+)', query_lower)
         if match_min:
             min_price = int(match_min.group(1))
         else:
@@ -494,6 +500,22 @@ class ProductService:
         Gender Filtering, Sales Volume Boost, Smart Price Fallback, and Offset Pagination.
         """
         if not self.documents:
+            return []
+
+        unsupported_keywords = ["รองเท้า", "นาฬิกา", "น้ำหอม", "แว่นตา", "เข็มขัด", "แหวน", "สร้อย", "ลิป", "กระเป๋าตังค์", "สเก็ตบอร์ด", "หูฟัง", "ตู้เย็น", "แก้วน้ำ", "หมอน", "เคสโทรศัพท์", "โน๊ตบุ๊ค"]
+        def is_unsupported(query: str) -> bool:
+            q_low = query.lower()
+            for kw in unsupported_keywords:
+                if kw in q_low:
+                    return True
+            if re.search(r'(?<!สี)ครีม', q_low):
+                return True
+            return False
+
+        if is_unsupported(raw_query):
+            print(f"🔎 [Search Engine Safeguard] Query '{raw_query}' matched unsupported keyword ──► Returning 0 products")
+            if return_dict:
+                return {"products": [], "total_count": 0, "has_more": False, "fallback_msg": None}
             return []
 
         min_price, max_price = self._extract_price_bounds(raw_query)
@@ -681,7 +703,17 @@ class ProductService:
                 else:
                     sales_vol_boost = 1.0 + min(np.log1p(sales_vol) * 0.02, 0.15)
 
-                final_score = base_score * intent_boost * color_boost * style_vibe_boost * gender_match_boost * kids_boost * crop_boost * category_mismatch_boost * sales_vol_boost
+                # Exact Percentage / Numeric Spec Boost (e.g., '60%', '100%')
+                spec_boost = 1.0
+                match_pct = re.search(r'(\d+)\s*%', raw_query)
+                if match_pct:
+                    pct_val = match_pct.group(1)
+                    if f"{pct_val}%" in item_haystack or f"{pct_val} %" in item_haystack or f"{pct_val} percent" in item_haystack:
+                        spec_boost = 3.00
+                    else:
+                        spec_boost = 0.20
+
+                final_score = base_score * intent_boost * color_boost * style_vibe_boost * gender_match_boost * kids_boost * crop_boost * category_mismatch_boost * sales_vol_boost * spec_boost
 
                 scores[doc_id] = {
                     "score": final_score,

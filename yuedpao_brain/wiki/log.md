@@ -9,6 +9,34 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-28] - Session 52: การแก้ไขการค้นหาสินค้าตามรูปกราฟิก (Dugong/Icons of Hope Description Enrichment) & Exact Numeric Spec Boost ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **การเติมเต็มคำอธิบายสินค้าเสื้อลายพะยูน (`Icons of Hope UNDP Collection`)**:
+   * สแกนตาราง `products` พบว่าคำว่า `"พะยูน"` ไม่อยู่ในคอลัมน์ `description` ของ DB เดิม (โดน Scraper ตัดย่อข้อความ)
+   * ทำการอัปเดต DB และรัน **Document Expansion 2.0 (Rule 6)** เติมคีย์เวิร์ด `ลายพะยูน อนุรักษ์พะยูน สัตว์ทะเล YUEDPAO X UNDP` ลงใน `products` และ Index เข้า ChromaDB VectorDB / BM25 
+   * ผลลัพธ์: ค้นหาประโยค `"มีเสื้อลายพะยูนมั้ย"` ดึงเสื้อรุ่น **`Oversize Screen ICONS OF HOPE YUEDPAO X UNDP`** ขึ้นอันดับ 1 ทันที
+2. **ระบบการให้โบนัสตัวเลขสเปกเป๊ะ (`spec_boost = 3.00x`)**:
+   * เพิ่มลอจิก `spec_boost` ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) เมื่อผู้ใช้ระบุสเปกสัดส่วนผสมผ้าเป๊ะๆ เช่น `cotton 60%` สินค้าที่มีตัวเลขตรงตามโจทย์จะได้รับคะแนน **3.00x** เบียดขึ้นอันดับ 1-4 ทันที
+3. **การทดสอบความถูกต้องอัตโนมัติ (Automated Pytest Standard)**:
+   * รันคำสั่ง `python run.py test` ผ่าน **100% ครบทั้ง 19 เคสทดสอบ (19/19 PASSED in 36.34s)**
+
+---
+
+## 📅 [2026-08-27] - Session 51: การป้องกันสินค้าหลุดขอบเขต (Out-of-Domain Item Leakage) & Price Boundary / First Visit Intent Fix ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **ระบบป้องกันสินค้าหลุดขอบเขต (Out-of-Domain Item Leakage Safeguard)**:
+   - เพิ่ม **Pre-Search Unsupported Category Guard** ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) และ [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py) ตรวจคำค้นหาที่ไม่มีในร้าน (`รองเท้า`, `นาฬิกา`, `น้ำหอม`, `แว่นตา`, `เข็มขัด`, `สร้อย`, `สเก็ตบอร์ด`, `หูฟัง`, `ตู้เย็น`) 
+   - หากแมตช์เจอคำกลุ่มนี้ ระบบจะคืนค่า `products = []` และตอบปฏิเสธสุภาพทันที (*"ขออภัยด้วยนะครับ สินค้าประเภท 'รองเท้า' ปัจจุบันแบรนด์ YuedPao ยังไม่มีจำหน่ายครับ 😅"*) โดยไม่ยัดเยียดเสื้อยืด 5 ตัวออกไป
+2. **การแก้ไข Price Boundary Filter (Bug #1 & Range 100-200)**:
+   - แก้ไข `_extract_price_bounds()` ใช้ Negative Lookbehind `(?<!ไม่)(?:มากกว่า|เกิน)` ป้องกันคำว่า `"ไม่เกิน 200"` โดนตีความผิดเป็น `min_price = 200`
+   - เพิ่ม Regex Pattern `(\d+)\s*[-–—toถึง]\s*(\d+)` รองรับการระบุงบแบบช่วง (`100-200` บาท) ได้อย่างถูกต้อง
+3. **การแก้ไข Tier 1 First Visit Intent Order**:
+   - ปรับลำดับ Tier 1 ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) ตรวจจับสัญญาณผู้ใช้ใหม่ (`"ครั้งแรก"`, `"น่าสนใจ"`, `"แนะนำหน่อย"`) ให้ถูกจัดเข้า `random_recommendation` (เพื่อแสดงสินค้าขายดี Top-5) แทนที่จะโดนคีย์เวิร์ดกวาดแบบ Greedy เข้า `product_search`
+
+---
+
 ## 📅 [2026-08-27] - Session 49: ระบบรองรับประโยคปฏิเสธประเภท "ไม่ใช่เสื้อ" (Negative Shirt Constraint Guard ADR)
 
 ### 🎯 สรุปผลงานที่ปรับปรุง

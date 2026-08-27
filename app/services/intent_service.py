@@ -258,6 +258,19 @@ class IntentService:
             print(f"🔍 [NLP Engine] Query: '{raw_query}' ──► Cleaned: '{res_dict['corrected_query']}' | Intent: '{res_dict['intent']}' | Tier: '{res_dict['tier_used']}' | Latency: {res_dict['latency_ms']:.2f}ms")
             return res_dict
 
+        # --- Tier 0.5: Unsupported Category Guard ---
+        unsupported_kws = ["รองเท้า", "นาฬิกา", "น้ำหอม", "แว่นตา", "เข็มขัด", "แหวน", "สร้อย", "ลิป", "กระเป๋าตังค์", "สเก็ตบอร์ด", "หูฟัง", "ตู้เย็น", "แก้วน้ำ", "หมอน", "เคสโทรศัพท์", "โน๊ตบุ๊ค"]
+        has_unsupported = any(kw in raw_lower for kw in unsupported_kws) or bool(re.search(r'(?<!สี)ครีม', raw_lower))
+        if has_unsupported:
+            total_time = (time.perf_counter() - start_t) * 1000.0
+            return _return_with_log({
+                "intent": "product_search",
+                "tier_used": "Tier 1: Priority Rule (Unsupported Guard)",
+                "corrected_query": corrected_query,
+                "confidence": 1.0,
+                "latency_ms": total_time
+            })
+
         # --- Tier 1 Priority Rules ---
         search_help_triggers = ["วิธีการค้นหา", "วิธีค้นหา", "ค้นหายังไง", "วิธีค้นหาสินค้า", "ค้นหาทำยังไง", "ค้นหาอย่างไร"]
         if any(sht in raw_lower for sht in search_help_triggers):
@@ -331,23 +344,25 @@ class IntentService:
                 "latency_ms": total_time
             })
 
-        product_triggers = ["ไม่เกิน", "งบ", "บาท", "ขอดู", "อยากได้", "อยากเห็น", "หาเสื้อ", "มีเสื้อ", "ราคาประมาณ", "สักตัว", "ขายดี", "ฮิต", "ยอดฮิต", "best seller", "นิยม", "กระเป๋า", "กางเกง", "ยีนส์", "โปโล", "ครอป", "เบบี้ที", "บรา", "สปอร์ตบรา", "bra"]
-        if any(pt in raw_lower for pt in product_triggers):
+        random_triggers = ["สุ่ม", "สุ่มแนะนำ", "แนะนำหน่อย", "สินค้าแนะนำ", "แนะนำเสื้อ", "ลองดูอะไรดี", "เลือกให้หน่อย", "ช่วยเลือก", "ไม่รู้จะซื้ออะไร", "ครั้งแรก", "พึ่งมา", "เพิ่งมา", "น่าสนใจ"]
+        # If user is asking for general recommendation ("เพิ่งมาร้านนี้ครั้งแรกมีเสื้อน่าสนใจมั้ย"), route to random_recommendation unless specific spec/price is provided
+        is_first_visit_recommendation = any(rt in raw_lower for rt in ["ครั้งแรก", "น่าสนใจ", "แนะนำหน่อย", "ไม่รู้จะซื้ออะไร"]) and not any(spec in raw_lower for spec in ["ราคา", "งบ", "ไม่เกิน", "บาท", "โปโล", "ยีนส์", "กระเป๋า", "สี", "เด็ก", "ผู้หญิง", "ผู้ชาย", "อก"])
+        if any(rt in raw_lower for rt in ["สุ่ม", "สุ่มแนะนำ", "สินค้าแนะนำ", "ลองดูอะไรดี", "เลือกให้หน่อย", "ช่วยเลือก"]) or is_first_visit_recommendation:
             total_time = (time.perf_counter() - start_t) * 1000.0
             return _return_with_log({
-                "intent": "product_search",
-                "tier_used": "Tier 1: Priority Rule (Product)",
+                "intent": "random_recommendation",
+                "tier_used": "Tier 1: Priority Rule (Random)",
                 "corrected_query": corrected_query,
                 "confidence": 1.0,
                 "latency_ms": total_time
             })
 
-        random_triggers = ["สุ่ม", "สุ่มแนะนำ", "แนะนำหน่อย", "สินค้าแนะนำ", "แนะนำเสื้อ", "ลองดูอะไรดี", "เลือกให้หน่อย", "ช่วยเลือก", "ไม่รู้จะซื้ออะไร"]
-        if any(rt in raw_lower for rt in random_triggers):
+        product_triggers = ["ไม่เกิน", "งบ", "บาท", "ขอดู", "อยากได้", "อยากเห็น", "หาเสื้อ", "มีเสื้อ", "ขอเสื้อ", "เนื้อผ้า", "ผ้า", "ราคาประมาณ", "สักตัว", "ขายดี", "ฮิต", "ยอดฮิต", "best seller", "นิยม", "กระเป๋า", "กางเกง", "ยีนส์", "โปโล", "ครอป", "เบบี้ที", "บรา", "สปอร์ตบรา", "bra", "หมวก"]
+        if any(pt in raw_lower for pt in product_triggers):
             total_time = (time.perf_counter() - start_t) * 1000.0
             return _return_with_log({
-                "intent": "random_recommendation",
-                "tier_used": "Tier 1: Priority Rule (Random)",
+                "intent": "product_search",
+                "tier_used": "Tier 1: Priority Rule (Product)",
                 "corrected_query": corrected_query,
                 "confidence": 1.0,
                 "latency_ms": total_time
