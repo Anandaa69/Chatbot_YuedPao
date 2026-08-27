@@ -345,6 +345,9 @@ class ProductService:
 
             gender_val = self._classify_product_gender(p["name"], cat_val, p["style"], p["description"])
 
+            item_haystack = f"{p['name']} {cat_val} {p['fabric']} {p['style']} {doc_text}".lower()
+            item_color_text = f"{p['name']} {color_val}".lower()
+
             self.metadatas.append({
                 "product_id": p["product_id"],
                 "name": p["name"],
@@ -357,7 +360,9 @@ class ProductService:
                 "colors": color_val,
                 "gender": gender_val,
                 "is_available": p.get("is_available", 1),
-                "sales_volume": p.get("sales_volume", 0)
+                "sales_volume": p.get("sales_volume", 0),
+                "haystack": item_haystack,
+                "color_text": item_color_text
             })
 
     def _classify_product_gender(self, name: str, category: str, style: str, description: str) -> str:
@@ -629,6 +634,27 @@ class ProductService:
                 except Exception as retry_e:
                     print(f"⚠️ ChromaDB Recovery Failed: {retry_e}")
 
+        # Pre-compute query-level flags once (outside RRF loop for massive speedup)
+        query_lower = raw_query.lower()
+        requested_vibes = self._detect_query_style_vibes(raw_query)
+        query_has_kids = any(k in query_lower for k in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก"])
+        query_has_crop = any(k in query_lower for k in ["crop", "ครอป", "เอวลอย"])
+        query_not_shirt = any(neg in query_lower for neg in ["ไม่ใช่เสื้อ", "ไม่เอาเสื้อ", "นอกจากเสื้อ", "ไม่ ใช่ เสื้อ"]) or (re.search(r'ไม่.*เสื้อ', query_lower) is not None)
+        query_has_bra = any(b in query_lower for b in ["บรา", "bra", "สปอร์ตบรา"])
+        query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
+
+        query_has_pants = self._fuzzy_has_keyword(query_lower, ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
+        query_has_unwear = self._fuzzy_has_keyword(query_lower, ["กางเกงใน", "กกน", "ชุดชั้นใน", "unwear", "briefs", "boxer"])
+        query_has_bag = self._fuzzy_has_keyword(query_lower, ["กระเป๋า", "bag", "bagg", "crossbody", "tote", "carrybag"])
+        
+        match_pct = re.search(r'(\d+)\s*%', raw_query)
+        match_pct_val = match_pct.group(1) if match_pct else None
+
+        requested_color_syns = []
+        if requested_colors:
+            for req_col in requested_colors:
+                requested_color_syns.extend(COLOR_KEYWORDS_MAP.get(req_col, [req_col]))
+
         # 3. RRF Fusion Helper
         def compute_rrf(apply_price_filter: bool, apply_strict_intent: bool = True):
             scores = {}
@@ -653,7 +679,7 @@ class ProductService:
                 r_vec = vector_rank_map.get(doc_id, 9999)
                 base_score = (1.0 / (k_constant + r_bm25)) + (1.0 / (k_constant + r_vec))
 
-                item_haystack = f"{meta['name']} {meta['category']} {meta['fabric']} {meta['style']} {self.documents[idx]}".lower()
+                item_haystack = meta.get("haystack", "")
 
                 # Strict Intent / Category Filter
                 if apply_strict_intent:
@@ -681,22 +707,15 @@ class ProductService:
 
                 # Color Match Boost & Non-match Demotion
                 color_boost = 1.0
-                if requested_colors:
-                    item_color_text = f"{meta['name']} {meta['colors'] or ''}".lower()
-                    has_color_match = False
-                    for req_col in requested_colors:
-                        syn_list = COLOR_KEYWORDS_MAP.get(req_col, [req_col])
-                        if any(syn in item_color_text for syn in syn_list):
-                            has_color_match = True
-                            break
-                    if has_color_match:
+                if requested_color_syns:
+                    item_col_text = meta.get("color_text", "")
+                    if any(syn in item_col_text for syn in requested_color_syns):
                         color_boost = 2.50
                     else:
                         color_boost = 0.15
 
                 # Style Vibe Match Boost (1.35x)
                 style_vibe_boost = 1.0
-                requested_vibes = self._detect_query_style_vibes(raw_query)
                 if requested_vibes:
                     for req_vibe in requested_vibes:
                         syn_list = STYLE_VIBE_KEYWORDS_MAP.get(req_vibe, [req_vibe])
@@ -717,15 +736,6 @@ class ProductService:
                     elif item_gender == "unisex":
                         gender_match_boost = 1.0
 
-                # Demographic & Category Demotion/Boost Factors
-                query_lower = raw_query.lower()
-                query_has_kids = any(k in query_lower for k in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก"])
-                query_has_crop = any(k in query_lower for k in ["crop", "ครอป", "เอวลอย"])
-                
-                query_not_shirt = any(neg in query_lower for neg in ["ไม่ใช่เสื้อ", "ไม่เอาเสื้อ", "นอกจากเสื้อ", "ไม่ ใช่ เสื้อ"]) or (re.search(r'ไม่.*เสื้อ', query_lower) is not None)
-                query_has_bra = any(b in query_lower for b in ["บรา", "bra", "สปอร์ตบรา"])
-                query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
-
                 item_title_cat = f"{meta['name']} {meta.get('category', '')} {meta.get('style', '')}".lower()
                 item_is_kids = "kid" in item_title_cat or "เด็ก" in item_title_cat
                 item_is_crop = "crop" in item_title_cat or "ครอป" in item_title_cat
@@ -740,10 +750,6 @@ class ProductService:
                 crop_boost = 0.40 if (item_is_crop and not query_has_crop) else 1.0
 
                 category_mismatch_boost = 1.0
-                query_has_pants = self._fuzzy_has_keyword(query_lower, ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
-                query_has_unwear = self._fuzzy_has_keyword(query_lower, ["กางเกงใน", "กกน", "ชุดชั้นใน", "unwear", "briefs", "boxer"])
-                query_has_bag = self._fuzzy_has_keyword(query_lower, ["กระเป๋า", "bag", "bagg", "crossbody", "tote", "carrybag"])
-
                 if query_has_bra:
                     item_is_bra = any(b in item_haystack for b in ["บรา", "bra", "สปอร์ตบรา", "rib bra"])
                     if item_is_bra:
@@ -757,9 +763,8 @@ class ProductService:
                     else:
                         category_mismatch_boost = 0.01
                 elif query_not_shirt:
-                    # Demote all shirt categories and shirt items when user explicitly asks for NOT shirts ("ไม่ใช่เสื้อ")
-                    item_title_cat = f"{meta['name']} {meta.get('category', '')} {meta.get('fabric', '')}".lower()
-                    item_is_non_shirt = any(non in item_title_cat for non in ["accessories", "unwear", "jeans", "pants", "short", "cap", "bag", "socks", "หมวก", "กระเป๋า", "กางเกง", "ถุงเท้า"])
+                    item_title_cat_fab = f"{meta['name']} {meta.get('category', '')} {meta.get('fabric', '')}".lower()
+                    item_is_non_shirt = any(non in item_title_cat_fab for non in ["accessories", "unwear", "jeans", "pants", "short", "cap", "bag", "socks", "หมวก", "กระเป๋า", "กางเกง", "ถุงเท้า"])
                     if item_is_non_shirt:
                         category_mismatch_boost = 2.50
                     else:
@@ -792,10 +797,8 @@ class ProductService:
 
                 # Exact Percentage / Numeric Spec Boost (e.g., '60%', '100%')
                 spec_boost = 1.0
-                match_pct = re.search(r'(\d+)\s*%', raw_query)
-                if match_pct:
-                    pct_val = match_pct.group(1)
-                    if f"{pct_val}%" in item_haystack or f"{pct_val} %" in item_haystack or f"{pct_val} percent" in item_haystack:
+                if match_pct_val:
+                    if f"{match_pct_val}%" in item_haystack or f"{match_pct_val} %" in item_haystack or f"{match_pct_val} percent" in item_haystack:
                         spec_boost = 3.00
                     else:
                         spec_boost = 0.20

@@ -948,6 +948,18 @@ Backlink: [[index]]
   * **สาเหตุ:** เซิร์ฟเวอร์ที่เปิดรันค้างไว้จำค่า Singleton `self.promotions` จาก RAM ก่อนการ Re-index
   * **การแก้ไข:** ปรับปรุงใน [app/services/promotion_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/promotion_service.py) เพิ่ม `self._load_promotions_from_db()` ลงใน `get_daily_deals()`, `get_monthly_deals()`, และ `get_all_coupons()` เพื่อโหลดข้อมูลล่าสุดตรงจาก SQLite `yuedpao_chatbot.db` ทุกครั้งที่มี Request สด
 
+
+- **การเพิ่มประสิทธิภาพความเร็วของ Search Engine (RRF Performance Optimization & Pre-caching ADR):**
+  * **สาเหตุของความช้าเดิม:**
+    1. ตัวจำแนก Intent และระบบ Fuzzy Matcher ใหม่ประมวลผลเร็วมากๆ **(เพียง 2.88 ms)**
+    2. แต่ในลูป `compute_rrf()` มีการสร้างข้อความ `item_haystack` (ข้อความ 2.7KB) ใหม่ 1,405 ครั้งทุกๆ การประมวลผล RRF รวมถึงการรัน Regex `re.search` และ `_fuzzy_has_keyword` ซ้ำๆ 1,405 ครั้งต่อลูป (คูณ 4 ลูป Fallback Cascade = 5,620 ครั้งต่อ Query!) ทำให้เสียเวลา CPU ถึง **3,907 ms (3.9 วินาที)**
+  * **การปรับปรุงแก้ไข:**
+    1. Pre-cache ฟิลด์ `haystack` และ `color_text` ไว้ล่วงหน้าตั้งแต่โหลด DB เข้า `metadatas`
+    2. ดึงตัวแปรระดับ Query (`requested_vibes`, `query_has_kids`, `query_has_pants`, `query_has_unwear`, `query_has_bag`, `requested_color_syns`, `match_pct_val`) ออกมาประมวลผล **นอกลูป `compute_rrf()` เพียงครั้งเดียวต่อ Request**
+  * **ผลลัพธ์ประสิทธิภาพ (Empirical Benchmark):**
+    - ความเร็วค้นหาลดลงจาก **3,907 ms** เหลือเพียง **225.67 ms (เร็วขึ้น 17.3 เท่า / 1,730% Speedup!)**
+    - เวลาทดสอบรวม PyTest Suite ลดลงจาก **88.77 วินาที** เหลือเพียง **45.19 วินาที (ผ่าน 19/19 PASSED 100%)**
+
 #### 4. ผลการทดสอบระบบและสถิติประสิทธิภาพ (System Benchmarks):
 - **ความเร็วตอบสนอง (Latency):** ทำสถิติใหม่ตอบสนองผู้ใช้บน LINE Webhook ที่ **1.07 ms – 1.88 ms** (น้อยกว่า 2 ms)
 - **ความแม่นยำภาษาพูดธรรมชาติ (Semantic Precision):**
