@@ -110,7 +110,16 @@ The Scraper builds an explicit **Domain Vocabulary Dictionary** used by the [[nl
 ### 3. การออกแบบฐานข้อมูลและการเก็บข้อมูล (Data Storage & Caching)
 * **Master Dataset**: ข้อมูลที่ดึงได้จะถูกแปลงและบันทึกเป็น `products.json` หรือ SQLite Database ในเครื่อง
 * **Fast Caching**: โหลดข้อมูลทั้งหมดขึ้นมาเก็บใน Memory / Cache (เช่น `redis` หรือ Local Memory dict) ทันทีที่ระบบ Chatbot ทำการ Start-up เพื่อช่วยให้ขั้นตอนการประมวลผล NLP & Product Randomizer ทำงานได้รวดเร็วขึ้นในระดับ **< 50 ms**
-* **ฟิลด์ตรวจสอบสต็อก**: ในขั้นตอนการดึงข้อมูล ให้เช็ก Tag บนหน้าเว็บ หากปุ่มเลือกสี/ไซส์กดไม่ได้ หรือมี Tag "สินค้าหมด" ให้ระบุตัวแปร `is_available: boolean (0 หรือ 1)` ในฐานข้อมูลทันที
+* **ฟิลด์ตรวจสอบสต็อกและการดักจับสินค้าหมด (`is_available`)**:
+  * **Authoritative Guard Rule**: ตรวจเช็กเจาะจงเฉพาะ Tag หัวเรื่องหลัก `<h4 ...>สินค้าหมด</h4>` (หรือ `<h5 ...>สินค้าหมด</h5>`) ด้านบนสินค้าเท่านั้น เพื่อป้องกันปัญหาจากคำว่า `"สินค้าหมด"` ในโซน *"สินค้าที่คุณอาจชอบ"* (Footer Carousel) ด้านล่างเว็บ:
+    ```python
+    out_of_stock_h4 = soup.find(lambda tag: tag.name in ["h4", "h5"] and "สินค้าหมด" in tag.get_text())
+    is_available = (out_of_stock_h4 is None)
+    ```
+* **การสั่งรันบังคับ Re-Scrape**: คำสั่งรัน Scraper อัปเดตข้อมูลทั้งหมดใหม่ทับฐานข้อมูลเดิม:
+  ```powershell
+  python -m app.scripts.run_scraper --all --force
+  ```
 
 ### 4. การจัดการ Chat UX บน LINE Chatbot กรณีสินค้าหมด (Graceful Fallback)
 เพื่อป้องกันความสับสนของลูกค้าและเพิ่มคะแนน UX การนำเสนอสินค้าต้องใช้เทคนิคดังนี้:

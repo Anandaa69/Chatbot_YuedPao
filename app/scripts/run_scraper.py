@@ -96,12 +96,8 @@ def save_category_to_db(cat_id: str, cat_name: str, parent_name: Optional[str], 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO categories (category_id, name, parent_name, url)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(category_id) DO UPDATE SET
-        name=excluded.name,
-        parent_name=excluded.parent_name,
-        url=excluded.url;
+    INSERT OR REPLACE INTO categories (category_id, name, parent_name, url)
+    VALUES (?, ?, ?, ?);
     """, (cat_id, cat_name, parent_name, url))
     conn.commit()
     conn.close()
@@ -174,10 +170,8 @@ def save_product_to_db(p_data: dict, current_category_id: Optional[str] = None):
     if p_data["fabric_collection"] and p_data["size_chart_url"]:
         fabric_id = p_data["fabric_collection"].lower().replace(" ", "_")
         cursor.execute("""
-        INSERT INTO fabric_specs (fabric_id, collection_name, size_chart_image_url)
-        VALUES (?, ?, ?)
-        ON CONFLICT(collection_name) DO UPDATE SET
-            size_chart_image_url=excluded.size_chart_image_url;
+        INSERT OR REPLACE INTO fabric_specs (fabric_id, collection_name, size_chart_image_url)
+        VALUES (?, ?, ?);
         """, (fabric_id, p_data["fabric_collection"], p_data["size_chart_url"]))
         
     # 4. Save variants
