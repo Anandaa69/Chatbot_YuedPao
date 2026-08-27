@@ -111,7 +111,7 @@ COLOR_KEYWORDS_MAP = {
 INTENT_MAP_KEYWORDS = {
     "polo": ["โปโล", "polo", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่", "คอปก", "เสื้อคอปก", "ปก", "เสื้อมีปก"],
     "babytee": ["เบบี้ที", "babytee", "baby tee", "เสื้อตัวเล็ก"],
-    "ultrasoft": ["ผ้านุ่ม", "ไม่ยับ", "ไม่ต้องรีด", "อัลตราซอฟ", "อลตราซอฟ", "อัลตราซอฟท์", "โคตรนุ่ม", "โคตนุ่ม", "เดินห้าง", "สบายตา"],
+    "ultrasoft": ["ผ้านุ่ม", "ไม่ยับ", "ไม่ต้องรีด", "อัลตราซอฟ", "อัลตราซอฟท์", "โคตรนุ่ม", "โคตนุ่ม", "เดินห้าง", "สบายตา"],
     "classic cotton": ["ฝ้าย", "cotton", "ผิวแพ้ง่าย", "ไม่คัน", "เนื้อผ้าแน่น", "ทรงตรง", "ไม่ยืดหลังซัก"],
     "tailor cool": ["ผ้าเย็น", "ไม่ร้อน", "เทเลอร์คูล", "ทเลอคูล", "ไม่หมอง", "ขับรถ"],
     "oversize": ["ทรงหลวม", "อกใหญ่", "ไหล่ตก", "คนอ้วน", "ตั้งครรภ์", "ตัวใหญ่", "โอเวอไซ", "โอเวอร์ไซส์", "สาวอวบ", "ซ่อนพุง", "คนท้อง"],
@@ -120,7 +120,7 @@ INTENT_MAP_KEYWORDS = {
     "sleeveless": ["แขนกุด", "เสื้อกล้าม", "โยคะ"],
     "running": ["วิ่ง", "ออกกำลังกาย", "ระบายเหงื่อ", "รันนิ่ง", "เดินป่า", "ไม่มีกลิ่นเหงื่อ"],
     "jeans": ["ยีนส์", "เกงยีนส์", "กางเกงยีนส์", "เดนิม"],
-    "bag": ["กระเป๋า", "กระเป็า", "กระเปา", "กระเป๋าสะพาย", "กระเป๋าถือ", "bag", "bagg", "crossbody", "carrybag", "tote"],
+    "bag": ["กระเป๋า", "กระเป๋าสะพาย", "กระเป๋าถือ", "bag", "bagg", "crossbody", "carrybag", "tote"],
     "pants": ["กางเกง", "กางเกงขาสั้น", "กางเกงขายาว", "ขาสั้น", "ขายาว", "คาร์โก้", "cargo", "shorts", "pants"]
 }
 
@@ -471,11 +471,55 @@ class ProductService:
 
         return min_price, max_price
 
+    @staticmethod
+    def _levenshtein(s1: str, s2: str) -> int:
+        if len(s1) < len(s2):
+            return ProductService._levenshtein(s2, s1)
+        if len(s2) == 0:
+            return len(s1)
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        return previous_row[-1]
+
+    def _fuzzy_has_keyword(self, raw_query: str, target_keywords: List[str], max_edit: int = 1) -> bool:
+        q_clean = raw_query.lower()
+        # 1. Direct sub-string match (< 0.01ms)
+        for target in target_keywords:
+            t_low = target.lower()
+            if t_low in q_clean:
+                return True
+
+        # 2. Pre-tokenization Sliding Window Fuzzy Match
+        q_len = len(q_clean)
+        if q_len < 3:
+            return False
+
+        for target in target_keywords:
+            t_low = target.lower()
+            t_len = len(t_low)
+            if t_len < 3:
+                continue
+            min_w = max(2, t_len - 1)
+            max_w = min(q_len + 1, t_len + 2)
+            for w_len in range(min_w, max_w):
+                for start_idx in range(0, q_len - w_len + 1):
+                    window = q_clean[start_idx : start_idx + w_len]
+                    if ProductService._levenshtein(window, t_low) <= max_edit:
+                        return True
+        return False
+
     def _detect_query_intents(self, query: str) -> List[str]:
         q_lower = query.lower()
         detected = []
         for intent_tag, kw_list in INTENT_MAP_KEYWORDS.items():
-            if any(kw in q_lower for kw in kw_list):
+            if self._fuzzy_has_keyword(q_lower, kw_list, max_edit=1):
                 detected.append(intent_tag)
         return detected
 
@@ -696,8 +740,9 @@ class ProductService:
                 crop_boost = 0.40 if (item_is_crop and not query_has_crop) else 1.0
 
                 category_mismatch_boost = 1.0
-                query_has_pants = any(k in query_lower for k in ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
-                query_has_bag = any(b in query_lower for b in ["กระเป๋า", "กระเป็า", "กระเปา", "bag", "bagg", "crossbody", "tote", "carrybag"])
+                query_has_pants = self._fuzzy_has_keyword(query_lower, ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
+                query_has_unwear = self._fuzzy_has_keyword(query_lower, ["กางเกงใน", "กกน", "ชุดชั้นใน", "unwear", "briefs", "boxer"])
+                query_has_bag = self._fuzzy_has_keyword(query_lower, ["กระเป๋า", "bag", "bagg", "crossbody", "tote", "carrybag"])
 
                 if query_has_bra:
                     item_is_bra = any(b in item_haystack for b in ["บรา", "bra", "สปอร์ตบรา", "rib bra"])
@@ -726,16 +771,22 @@ class ProductService:
                     # Demote non-shirt items like caps and shorts inside multi-product categories (e.g. ULTRA FLOW)
                     if any(unwanted in item_haystack for unwanted in ["กางเกง", "หมวก", " cap", "cap_", "short", "shorts", "pants", "trousers"]):
                         category_mismatch_boost = 0.01
-                elif query_has_pants:
-                    # Demote shirts when searching for pants/shorts
-                    if any(unwanted in item_haystack for unwanted in ["เสื้อ", "shirt", "tshirt", "t-shirt", "polo", "crop", "babytee"]):
+                elif query_has_pants and not query_has_unwear:
+                    # Outerwear Pants Priority Boost (3.50x) & Demote Underwear/UNWEAR (0.01x) and Shirts (0.01x)
+                    item_is_unwear = "unwear" in item_cat_upper or any(u in item_title_cat for u in ["unwear", "กางเกงใน", "briefs", "boxer"])
+                    item_is_outer_pants = any(p in item_title_cat for p in ["กางเกง", "pants", "short", "shorts", "jeans", "ยีนส์", "cargo", "sweatpant"])
+                    if item_is_unwear:
+                        category_mismatch_boost = 0.01
+                    elif item_is_outer_pants:
+                        category_mismatch_boost = 3.50
+                    elif any(unwanted in item_haystack for unwanted in ["เสื้อ", "shirt", "tshirt", "t-shirt", "polo", "crop", "babytee"]):
                         category_mismatch_boost = 0.01
 
                 # Sales Volume / Popularity Match Boost
                 sales_vol = meta.get("sales_volume", 0)
                 sales_vol_boost = 1.0
                 if is_popular:
-                    sales_vol_boost = 1.0 + min(np.log1p(sales_vol) * 0.25, 1.8)
+                    sales_vol_boost = 1.0 + min(np.log1p(sales_vol) * 0.60, 4.0)
                 else:
                     sales_vol_boost = 1.0 + min(np.log1p(sales_vol) * 0.02, 0.15)
 
@@ -759,7 +810,23 @@ class ProductService:
 
         # 1. Search with strict budget and strict intent constraint
         strict_scores = compute_rrf(apply_price_filter=True, apply_strict_intent=True)
-        sorted_strict = sorted(strict_scores.items(), key=lambda x: x[1]["score"], reverse=True)
+        if is_popular:
+            # Filter items that matched category guards (score > 0.01 threshold)
+            valid_popular = [item for item in strict_scores.items() if item[1]["score"] > 0.01]
+            invalid_popular = [item for item in strict_scores.items() if item[1]["score"] <= 0.01]
+            sorted_valid = sorted(
+                valid_popular, 
+                key=lambda x: (x[1]["metadata"].get("sales_volume", 0), x[1]["score"]), 
+                reverse=True
+            )
+            sorted_invalid = sorted(
+                invalid_popular, 
+                key=lambda x: x[1]["score"], 
+                reverse=True
+            )
+            sorted_strict = sorted_valid + sorted_invalid
+        else:
+            sorted_strict = sorted(strict_scores.items(), key=lambda x: x[1]["score"], reverse=True)
         strict_items = [res[1]["metadata"] for res in sorted_strict]
 
         # Demographic Filter Guard: If user specifically asked for kids products, exclude adult items if kids items exist
