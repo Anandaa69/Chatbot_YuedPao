@@ -9,6 +9,42 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-27] - Session 49: ระบบรองรับประโยคปฏิเสธประเภท "ไม่ใช่เสื้อ" (Negative Shirt Constraint Guard ADR)
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **ระบบรองรับประโยคปฏิเสธประเภท "ไม่ใช่เสื้อ" / "ไม่เอาเสื้อ" / "นอกจากเสื้อ"**:
+   - เพิ่มคำว่า `"ไม่"` และ `"ไม่ใช่"` เข้าไปใน `PRESERVED_KEYWORDS` ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) เพื่อป้องกันไม่ให้คำปฏิเสธถูกลบระหว่างกระบวนการ Clean Stopwords
+   - พัฒนา **Negative Constraint Guard** ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) ตรวจจับประโยคปฏิเสธ `query_not_shirt = True` แล้วสั่งให้ระบบ:
+     * เพิ่มโบนัสคะแนนสินค้าหมวดที่ไม่ใช่เสื้อ (**กระเป๋า, หมวก, ถุงเท้า, กางเกงยีนส์, กางเกงใน Unwear**) เป็น **2.50x**
+     * ลดคะแนนสินค้าประเภทเสื้อยืด โปโล ครอป ลงเหลือ **0.01x**
+2. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - เพิ่มเคสทดสอบ `test_intent_negative_shirt_constraint` ใน [test_all_intents.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_all_intents.py)
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 19 เคสทดสอบ (19/19 PASSED in 36.37s)**
+
+---
+
+## 📅 [2026-08-27] - Session 48: การพัฒนาป้าย Badge สินค้าแนะนำ ("⭐ แนะนำ") บน LINE Flex Carousel ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **การแสดงป้าย Badge สินค้าแนะนำบน LINE Flex Message (`⭐ แนะนำ`)**:
+   - ปรับปรุง [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) ติดธง `is_recommended = True` ให้กับสินค้าจากการสุ่มแนะนำและสินค้าเติมเติม Smart Fallback
+   - ปรับปรุงการสร้าง Flex Cards ใน [flex_carousel.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/views/flex_carousel.py) แสดงผลป้าย Badge เล็กๆ **`⭐ แนะนำ`** สีส้มทอง (`#d97706`) ที่มุมขวาบนของการ์ดสินค้าอย่างสวยงาม
+2. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 18 เคสทดสอบ (18/18 PASSED in 36.49s)**
+
+---
+
+## 📅 [2026-08-27] - Session 47: ระบบป้องกันสินค้าผู้ใหญ่หลุดเติมช่องการ์ดเมื่อค้นหาเสื้อเด็ก (Demographic Filter Guard ADR)
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+1. **การป้องกันสินค้าผู้ใหญ่หลุดเติมช่องการ์ดสินค้าเด็ก (`Demographic Filter Guard`)**:
+   - พัฒนาการกรองระดับผลลัพธ์สุดท้ายใน `search_products()` ของ [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py)
+   - เมื่อผู้ใช้ค้นหาสินค้าเด็ก (`query_has_kids = True`) หากพบสินค้าเด็กตรงเงื่อนไข ระบบจะคัดกรองเฉพาะสินค้าเด็กเท่านั้น และจะไม่ดึงสินค้าผู้ใหญ่ที่มีคะแนนซัพเพรสเข้ามาเติมในช่องการ์ดสินค้าที่เหลือ (เช่น แสดงผล 4 การ์ดเด็กล้วนตรงเงื่อนไข 100%)
+2. **มาตรฐานการทดสอบอัตโนมัติ (Automated Pytest Standard)**:
+   - ผลการรัน Pytest ผ่านคำสั่ง `python run.py test`: **ผ่าน 100% ครบทั้ง 18 เคสทดสอบ (18/18 PASSED in 37.62s)**
+
+---
+
 ## 📅 [2026-08-27] - Session 46: มาตรฐานการจัดรูปแบบราคาทศนิยม 1 ตำแหน่ง (Single Decimal Price Standard ADR)
 
 ### 🎯 สรุปผลงานที่ปรับปรุง

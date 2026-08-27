@@ -626,7 +626,10 @@ class ProductService:
                 query_lower = raw_query.lower()
                 query_has_kids = any(k in query_lower for k in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก"])
                 query_has_crop = any(k in query_lower for k in ["crop", "ครอป", "เอวลอย"])
-                query_has_shirt = any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"])
+                
+                query_not_shirt = any(neg in query_lower for neg in ["ไม่ใช่เสื้อ", "ไม่เอาเสื้อ", "นอกจากเสื้อ", "ไม่ ใช่ เสื้อ"]) or (re.search(r'ไม่.*เสื้อ', query_lower) is not None)
+                query_has_bra = any(b in query_lower for b in ["บรา", "bra", "สปอร์ตบรา"])
+                query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
 
                 item_is_kids = "kid" in item_haystack or "เด็ก" in item_haystack
                 item_is_crop = "crop" in item_haystack or "ครอป" in item_haystack
@@ -644,7 +647,21 @@ class ProductService:
                 category_mismatch_boost = 1.0
                 query_has_pants = any(k in query_lower for k in ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
 
-                if query_has_shirt:
+                if query_has_bra:
+                    item_is_bra = any(b in item_haystack for b in ["บรา", "bra", "สปอร์ตบรา", "rib bra"])
+                    if item_is_bra:
+                        category_mismatch_boost = 2.50
+                    else:
+                        category_mismatch_boost = 0.01
+                elif query_not_shirt:
+                    # Demote all shirt categories and shirt items when user explicitly asks for NOT shirts ("ไม่ใช่เสื้อ")
+                    item_title_cat = f"{meta['name']} {meta.get('category', '')} {meta.get('fabric', '')}".lower()
+                    item_is_non_shirt = any(non in item_title_cat for non in ["accessories", "unwear", "jeans", "pants", "short", "cap", "bag", "socks", "หมวก", "กระเป๋า", "กางเกง", "ถุงเท้า"])
+                    if item_is_non_shirt:
+                        category_mismatch_boost = 2.50
+                    else:
+                        category_mismatch_boost = 0.01
+                elif query_has_shirt:
                     # Demote non-shirt categories
                     if any(unwanted in item_cat_upper for unwanted in ["UNWEAR", "ACCESSORIES", "RIB BRA", "SOCKS"]):
                         category_mismatch_boost = 0.01
@@ -677,6 +694,16 @@ class ProductService:
         sorted_strict = sorted(strict_scores.items(), key=lambda x: x[1]["score"], reverse=True)
         strict_items = [res[1]["metadata"] for res in sorted_strict]
 
+        # Demographic Filter Guard: If user specifically asked for kids products, exclude adult items if kids items exist
+        query_has_kids = any(k in raw_query.lower() for k in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก"])
+        if query_has_kids:
+            kids_only_items = [
+                m for m in strict_items 
+                if "kid" in (m.get("name", "") + m.get("category", "")).lower() or "เด็ก" in (m.get("name", "") + m.get("category", "")).lower()
+            ]
+            if kids_only_items:
+                strict_items = kids_only_items
+
         fallback_message = None
 
         if len(strict_items) >= (offset + top_k) or (max_price is None and not detected_intents and len(strict_items) >= offset):
@@ -689,7 +716,12 @@ class ProductService:
 
             strict_ids = {p["product_id"] for p in strict_items}
             needed = max(0, (offset + top_k) - len(strict_items))
-            additional_items = [p for p in relaxed_items if p["product_id"] not in strict_ids]
+            additional_items = []
+            for p in relaxed_items:
+                if p["product_id"] not in strict_ids:
+                    p_copy = dict(p)
+                    p_copy["is_recommended"] = True
+                    additional_items.append(p_copy)
 
             all_candidate_items = strict_items + additional_items
 
@@ -761,4 +793,11 @@ class ProductService:
         session_history.extend(new_shown_ids)
         
         del session_history[:-10]
-        return selected_items
+        
+        recommended_items = []
+        for item in selected_items:
+            item_copy = dict(item)
+            item_copy["is_recommended"] = True
+            recommended_items.append(item_copy)
+            
+        return recommended_items

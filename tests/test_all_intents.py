@@ -180,3 +180,14 @@ def test_intent_search_help(router):
     assert res["intent"] == "search_help"
     assert "วิธีค้นหาสินค้า YuedPao" in res["reply_text"]
     assert "1️⃣ ชนิดสินค้า & ทรง" in res["reply_text"]
+
+
+def test_intent_negative_shirt_constraint(router):
+    res = router.route_query("มีสินค้าที่ไม่ใช่เสื้อมั้ย")
+    assert res["intent"] == "product_search"
+    assert res["flex_payload"] is not None
+    assert len(res["flex_payload"]["contents"]) > 0
+    # Ensure NO shirts appear when user asks for NOT shirts
+    for card in res["flex_payload"]["contents"]:
+        body_text = str(card.get("body", {})).lower()
+        assert "เสื้อยืด" not in body_text and " ultrasoft" not in body_text and " polo" not in body_text

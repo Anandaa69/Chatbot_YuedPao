@@ -73,7 +73,13 @@ class TieredRouter:
                     reply_text = f"พบสินค้าแบรนด์ยืดเปล่า {search_res.get('total_count', len(products))} รายการที่ตรงกับความต้องการของคุณ (อันดับ 1–{len(products)}) ครับ:"
                 flex_payload = build_product_flex_carousel(products)
             else:
-                reply_text = "ขออภัยครับ ไม่พบสินค้าตรงกับเงื่อนไข ลองปรับงบประมาณหรือค้นหาด้วยสีอื่นดูนะครับ"
+                unsupported_keywords = ["รองเท้า", "นาฬิกา", "น้ำหอม", "แว่นตา", "เข็มขัด", "แหวน", "สร้อย", "ลิป", "ครีม", "กระเป๋าตังค์"]
+                found_unsupported = [kw for kw in unsupported_keywords if kw in raw_query.lower()]
+                if found_unsupported:
+                    item_name = found_unsupported[0]
+                    reply_text = f"ขออภัยด้วยนะครับ สินค้าประเภท '{item_name}' ปัจจุบันแบรนด์ YuedPao ยังไม่มีจำหน่ายครับ 😅 สามารถลองดูสินค้าประเภท เสื้อยืด เสื้อโปโล กางเกง หมวก หรือกระเป๋าสะพาย ของยืดเปล่าแทนได้เลยนะครับ 🛍️"
+                else:
+                    reply_text = "ขออภัยครับ สินค้ากลุ่มนี้ในระบบ YuedPao ยังไม่มีจำหน่ายครับ 😅 ลองค้นหาด้วยประเภทสินค้า เช่น เสื้อยืด โปโล กางเกง หมวก หรือกระเป๋า ดูแทนได้เลยนะครับ 🛍️"
 
         elif intent == "see_more_products":
             user_sess = self.user_sessions.get(user_id, {})

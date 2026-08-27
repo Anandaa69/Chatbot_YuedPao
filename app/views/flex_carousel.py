@@ -33,14 +33,34 @@ def build_product_flex_carousel(products: List[Dict[str, Any]]) -> Dict[str, Any
         except Exception:
             price_text = "สอบถามราคา"
         
-        contents = [
-            # Category Badge
+        category_box_contents = [
             {
                 "type": "text",
                 "text": f"{category.upper()}",
                 "weight": "bold",
                 "color": "#e63946",
-                "size": "xs"
+                "size": "xs",
+                "flex": 1
+            }
+        ]
+
+        if item.get("is_recommended"):
+            category_box_contents.append({
+                "type": "text",
+                "text": "⭐ แนะนำ",
+                "weight": "bold",
+                "color": "#d97706",
+                "size": "xs",
+                "align": "end",
+                "flex": 0
+            })
+
+        contents = [
+            # Category & Recommendation Badge Header
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": category_box_contents
             },
             # Product Name
             {
