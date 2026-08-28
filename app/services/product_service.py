@@ -142,7 +142,8 @@ class ProductService:
 
     def __init__(self):
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        self.db_path = os.path.join(base_dir, "yuedpao_chatbot.db")
+        data_db = os.path.join(base_dir, "data", "yuedpao_chatbot.db")
+        self.db_path = data_db if os.path.exists(data_db) else os.path.join(base_dir, "yuedpao_chatbot.db")
         
         # Load BERT model via ModelLoader singleton
         self.bert_model = ModelLoader.get_embedding_model()

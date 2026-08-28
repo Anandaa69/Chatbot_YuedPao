@@ -9,6 +9,91 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-28] - Session 63: Pure Poetry Dependency Standardization & README Update ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **ปรับระบบการจัดการแพ็กเกจเป็น Poetry 100%**:
+   - ลบไฟล์ `requirements.txt` ออก เพื่อใช้ [pyproject.toml](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/pyproject.toml) และ `poetry.lock` เป็น Single Source of Truth
+   - เพิ่ม `python-dotenv = "^1.0.0"` เข้าสู่ dependencies ใน `pyproject.toml`
+   - ปรับปรุง [README.md](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/README.md) ทุกจุดให้ใช้คำสั่ง Poetry (`poetry install`, `poetry run python app/main.py`, `poetry run pytest`)
+
+2. **ผลการทดสอบ**:
+   - `python -m pytest`: **44/44 PASSED (100%)** ✅
+
+---
+
+## 📅 [2026-08-28] - Session 62: Comprehensive Project Documentation (`README.md`) ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **จัดทำเอกสารคู่มือโปรเจกต์ฉบับสมบูรณ์ ([README.md](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/README.md))**:
+   - อธิบายภาพรวมโปรเจกต์ สถาปัตยกรรม 4-Tier NLP Engine + Two-Pass Hybrid Search (BM25 + ChromaDB Vector RRF)
+   - แผนภาพ System Architecture และโครงสร้างไดเรกทอรีแบบ Layered Architecture
+   - ขั้นตอนการติดตั้ง Dependencies, ตั้งค่า `.env`, การรัน Webhook Server (`python app/main.py`)
+   - ขั้นตอนการเปิด Cloudflare Tunnel (`cloudflared tunnel --url http://127.0.0.1:5000`) และตั้งค่าบน LINE Developers Console
+   - คำสั่งรัน Automated Test Suite (`python -m pytest`) และตารางผลลัพธ์ Benchmark (Accuracy 96.80%, Latency < 4 ms, Typo Resilience 100%)
+
+2. **จัดทำ [requirements.txt](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/requirements.txt)**:
+   - รวบรวม Dependencies ทั้งหมดสำหรับติดตั้งผ่าน `pip install -r requirements.txt` ได้โดยตรง
+
+3. **ผลการทดสอบ**:
+   - `python -m pytest`: **44/44 PASSED (100%)** ✅
+
+---
+
+## 📅 [2026-08-28] - Session 61: Consolidated Data Layer Migration (`yuedpao_chatbot.db` -> `data/`) ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **การย้าย SQLite Database รวมเข้าโฟลเดอร์ Data Layer (`data/`)**:
+   - ย้ายไฟล์ `yuedpao_chatbot.db` ➔ `data/yuedpao_chatbot.db`
+   - รวม Relational Database และ Vector Embeddings (ChromaDB) ให้อยู่ในโฟลเดอร์เดียวกัน (`data/`) สะดวกต่อการทำ Docker Volume Mount (`-v ./data:/data`) และ Backup ในระดับ Production
+   - อัปเดตการอ้างอิงพาธพร้อม Backward Compatible Fallback ใน:
+     - [config.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/config.py) (`DATABASE_URL=sqlite:///./data/yuedpao_chatbot.db`)
+     - [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py)
+     - [promotion_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/promotion_service.py)
+     - [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py)
+     - [run_scraper.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/run_scraper.py)
+     - [run_promotion_scraper_runner.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/scripts/run_promotion_scraper_runner.py)
+     - [.env.example](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/.env.example) และ `.env`
+
+2. **ผลการทดสอบ**:
+   - `python -m pytest`: **44/44 PASSED (100%)** ✅
+
+---
+
+## 📅 [2026-08-28] - Session 60: ChromaDB Storage Architecture Verification & Cleanup ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **สถาปัตยกรรมการจัดเก็บ ChromaDB Vector Store**:
+   - ตรวจสอบและยืนยันว่า โค้ดของระบบ ([product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) และ [promotion_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/promotion_service.py)) ตั้งค่าให้บันทึก Vector Store ไว้ที่โฟลเดอร์ภายนอก `data/chroma/` (ระดับ Root นอกโฟลเดอร์ `app/`) อยู่แล้วตามมาตรฐาน Production
+   - ทำความสะอาดลบโฟลเดอร์ตกค้าง `app/data/chroma/` ที่เคยสร้างไว้ตอนเทสออกไป เพื่อให้โฟลเดอร์ `app/data/` คงเหลือเฉพาะไฟล์ Static Domain Vocab (`domain_vocab.json`, `nlp_ground_truth.json`) ที่เป็น Read-Only
+
+2. **ผลการทดสอบ**:
+   - `python -m pytest`: **44/44 PASSED (100%)** ✅
+
+---
+
+## 📅 [2026-08-28] - Session 59: Production File Cleanup & Webhook Testing Mode Guard ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **การลบไฟล์และขยะที่ไม่จำเป็นสำหรับ Production**:
+   - ลบ `app/scripts/update_notebook_03.py` (สคริปต์ one-off patch เก่า)
+   - ลบ `app/scripts/update_deals.py` (สคริปต์ one-off database update เก่า)
+   - ล้างไฟล์แคช Python เก่าตกค้าง `*.cpython-312.pyc` ทั่วทั้งโปรเจกต์
+   - ตรวจสอบ `.gitignore` ครอบคลุม `.env`, `__pycache__`, `*.db`, `chroma/` ครบถ้วน
+
+2. **Webhook Controller Testing Mode Guard**:
+   - ปรับปรุง [webhook_controller.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/controllers/webhook_controller.py) ให้รองรับ `current_app.config.get("TESTING")` ทำให้ระบบ Unit Test สามารถรัน Mock Webhook ได้อย่างถูกต้องแม้ในเครื่องจะมีการตั้งค่า Real `LINE_CHANNEL_SECRET` ไว้ก็ตาม
+
+3. **ผลการทดสอบ**:
+   - `python -m pytest`: **44/44 PASSED (100%)** ✅
+
+---
+
 ## 📅 [2026-08-28] - Session 58: Fix `util` NameError & Flask Single-Startup (`use_reloader=False`) ADR
 
 ### 🎯 สรุปผลงานที่ปรับปรุง

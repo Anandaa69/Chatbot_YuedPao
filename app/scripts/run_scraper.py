@@ -21,7 +21,8 @@ from playwright.async_api import async_playwright
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ScraperRunner")
 
-DB_FILE = "yuedpao_chatbot.db"
+data_db = os.path.join(project_root, "data", "yuedpao_chatbot.db")
+DB_FILE = data_db if os.path.exists(data_db) else os.path.join(project_root, "yuedpao_chatbot.db")
 VOCAB_FILE = os.path.join(project_root, "app", "data", "domain_vocab.json")
 
 def init_db():

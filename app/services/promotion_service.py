@@ -42,7 +42,8 @@ class PromotionService:
     def __init__(self):
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.base_dir = base_dir
-        self.db_path = os.path.join(base_dir, "yuedpao_chatbot.db")
+        data_db = os.path.join(base_dir, "data", "yuedpao_chatbot.db")
+        self.db_path = data_db if os.path.exists(data_db) else os.path.join(base_dir, "yuedpao_chatbot.db")
         self.chroma_path = os.path.join(base_dir, "data", "chroma")
         
         # Load BERT model via ModelLoader singleton

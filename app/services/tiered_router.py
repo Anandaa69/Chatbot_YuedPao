@@ -25,7 +25,9 @@ class TieredRouter:
 
     def get_coupons_from_db(self) -> List[Dict[str, Any]]:
         """Fetch active coupons from SQLite 'coupons' table."""
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "yuedpao_chatbot.db")
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        data_db = os.path.join(base_dir, "data", "yuedpao_chatbot.db")
+        db_path = data_db if os.path.exists(data_db) else os.path.join(base_dir, "yuedpao_chatbot.db")
         if not os.path.exists(db_path):
             return []
         try:

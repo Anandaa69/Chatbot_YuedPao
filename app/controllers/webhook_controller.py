@@ -3,7 +3,7 @@ Flask Webhook Controller for LINE Bot SDK v3 (YuedPao Chatbot)
 Handles /callback endpoint, X-Line-Signature validation, and dispatches events via TieredRouter.
 """
 
-from flask import Blueprint, request, abort, jsonify
+from flask import Blueprint, request, abort, jsonify, current_app
 from typing import Dict, Any
 
 try:
@@ -89,8 +89,8 @@ def callback():
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
 
-    # Mock mode handling for local testing / test suite without real LINE keys
-    if not LINE_CHANNEL_SECRET or LINE_CHANNEL_SECRET == "MOCK_SECRET":
+    # Mock mode handling for local testing / test suite without real LINE keys or in pytest TESTING mode
+    if current_app.config.get("TESTING") or not LINE_CHANNEL_SECRET or LINE_CHANNEL_SECRET == "MOCK_SECRET":
         try:
             payload = request.get_json(force=True, silent=True) or {}
             events = payload.get("events", [])

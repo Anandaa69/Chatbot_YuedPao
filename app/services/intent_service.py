@@ -97,11 +97,12 @@ class IntentService:
         # Load BERT model via ModelLoader singleton
         self.bert_model = ModelLoader.get_embedding_model()
                 
-        # Setup ChromaDB Few-Shot Vector Store
+        # Setup ChromaDB Few-Shot Vector Store in persistent root data/chroma directory
         self.chroma_collection = None
         if chromadb and self.bert_model and self.ground_truth:
             try:
-                chroma_path = os.path.join(self.data_dir, "chroma")
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                chroma_path = os.path.join(project_root, "data", "chroma")
                 os.makedirs(chroma_path, exist_ok=True)
                 self.chroma_client = chromadb.PersistentClient(path=chroma_path)
                 self.chroma_collection = self.chroma_client.get_or_create_collection("intent_few_shot")

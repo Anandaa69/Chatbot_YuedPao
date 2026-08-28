@@ -218,7 +218,7 @@ def scrape_deal_products_with_details(driver: webdriver.Chrome, deal_info: Dict[
             
     print(f"✅ พบสินค้าในหมวด '{deal_title}' รวม {len(items_summary)} รายการ -> กำลังเริ่มกดเข้าไปดึงรายละเอียดเชิงลึก...")
     
-    db_p = "yuedpao_chatbot.db"
+    db_p = DEFAULT_DB_PATH
     for item in items_summary:
         print(f"  👉 กำลังเข้าหน้าสินค้า: {item['name']} ({item['product_url']})...")
         detail = scrape_deep_product_detail(driver, item["product_url"])
@@ -243,7 +243,11 @@ def scrape_deal_products_with_details(driver: webdriver.Chrome, deal_info: Dict[
         
     return items_summary
 
-def save_rich_promotions_to_db(all_deals: List[Dict[str, Any]], db_path: str = "yuedpao_chatbot.db"):
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+data_db = os.path.join(project_root, "data", "yuedpao_chatbot.db")
+DEFAULT_DB_PATH = data_db if os.path.exists(data_db) else os.path.join(project_root, "yuedpao_chatbot.db")
+
+def save_rich_promotions_to_db(all_deals: List[Dict[str, Any]], db_path: str = DEFAULT_DB_PATH):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
