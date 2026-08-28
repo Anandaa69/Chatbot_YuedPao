@@ -73,7 +73,7 @@ class TieredRouter:
             )
 
         elif intent == "product_search":
-            search_res = self.product_service.search_products(raw_query, top_k=5, offset=0, return_dict=True)
+            search_res = self.product_service.search_products(raw_query, top_k=5, offset=0, return_dict=True, corrected_query=corrected_query)
             products = search_res["products"]
             fallback_msg = search_res.get("fallback_message")
             has_more = search_res.get("has_more", False) and 5 < 20
@@ -122,7 +122,7 @@ class TieredRouter:
                     flex_payload = None
                     has_more = False
                 else:
-                    search_res = self.product_service.search_products(last_query, top_k=5, offset=next_offset_target, return_dict=True)
+                    search_res = self.product_service.search_products(last_query, top_k=5, offset=next_offset_target, return_dict=True, corrected_query=corrected_query)
                     products = search_res["products"]
                     has_more = search_res.get("has_more", False) and (next_offset_target + 5 < 20)
                     next_offset_val = next_offset_target + 5

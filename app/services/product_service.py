@@ -114,7 +114,7 @@ COLOR_KEYWORDS_MAP = {
 }
 
 INTENT_MAP_KEYWORDS = {
-    "polo": ["โปโล", "polo", "เสื้อโปเล", "โปเล", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่", "คอปก", "เสื้อคอปก", "ปก", "เสื้อมีปก"],
+    "polo": ["โปโล", "polo", "เสื้อโปเล", "โปเล", "เสื้อเปเล", "เปเล", "เปโล", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่", "คอปก", "เสื้อคอปก", "ปก", "เสื้อมีปก"],
     "babytee": ["เบบี้ที", "babytee", "baby tee", "เสื้อตัวเล็ก"],
     "ultrasoft": ["ผ้านุ่ม", "ไม่ยับ", "ไม่ต้องรีด", "อัลตราซอฟ", "อัลตราซอฟท์", "โคตรนุ่ม", "โคตนุ่ม", "เดินห้าง", "สบายตา"],
     "classic cotton": ["ฝ้าย", "cotton", "ผิวแพ้ง่าย", "ไม่คัน", "เนื้อผ้าแน่น", "ทรงตรง", "ไม่ยืดหลังซัก"],
@@ -301,22 +301,22 @@ class ProductService:
             colors_info = f"สี: {spaced_colors}" if spaced_colors else ""
 
             expansions = []
-            full_text_lower = f"{clean_name} {clean_cat} {p['fabric']} {p['style']} {spaced_colors} {clean_desc}".lower()
+            header_text_lower = f"{clean_name} {clean_cat} {p['fabric']} {p['style']} {spaced_colors}".lower()
             
             for fab_key, syns in FABRIC_SYNONYMS.items():
-                if fab_key.lower() in full_text_lower:
+                if fab_key.lower() in header_text_lower:
                     expansions.append(syns)
             for col_key, syns in COLOR_SYNONYMS.items():
-                if col_key.lower() in full_text_lower:
+                if col_key.lower() in header_text_lower:
                     expansions.append(syns)
             for style_key, syns in PERSONA_SYNONYMS.items():
-                if style_key.lower() in full_text_lower:
+                if style_key.lower() in header_text_lower:
                     expansions.append(syns)
             for style_key, syns in STYLE_SYNONYMS.items():
-                if style_key.lower() in full_text_lower:
+                if style_key.lower() in header_text_lower:
                     expansions.append(syns)
             for k_key, syns in KODNUM_SYNONYMS.items():
-                if k_key.lower() in full_text_lower:
+                if k_key.lower() in header_text_lower:
                     expansions.append(syns)
 
             synonym_str = f" | คำค้นหาพ้อง: {' '.join(set(expansions))}" if expansions else ""
@@ -572,11 +572,12 @@ class ProductService:
         q_lower = query.lower()
         return any(kw in q_lower for kw in POPULAR_KEYWORDS)
 
-    def search_products(self, raw_query: str, top_k: int = 15, offset: int = 0, k_constant: int = 60, return_dict: bool = False) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
+    def search_products(self, raw_query: str, top_k: int = 15, offset: int = 0, k_constant: int = 60, return_dict: bool = False, corrected_query: Optional[str] = None) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Main entry point for product retrieval. Combines BM25 and Vector DB search 
         using Reciprocal Rank Fusion (RRF), with integrated Intent Boost, Color Match Boost,
-        Gender Filtering, Sales Volume Boost, Smart Price Fallback, and Offset Pagination.
+        Gender Filtering, Sales Volume Boost, Smart Price Fallback, Offset Pagination,
+        and Two-Pass Search Relaxation with Typo Resilience.
         """
         if not self.documents:
             return []
@@ -638,12 +639,15 @@ class ProductService:
         # Pre-compute query-level flags once (outside RRF loop for massive speedup)
         query_lower = raw_query.lower()
         requested_vibes = self._detect_query_style_vibes(raw_query)
-        # Use fuzzy match for kids so typos like 'เด็ห', 'เดก', 'เด็ค', 'เสื้อเด' are caught
-        query_has_kids = self._fuzzy_has_keyword(query_lower, ["เด็ก", "kid", "kids", "อนุบาล", "ลูก", "เด็กชาย", "เด็กหญิง", "เสื้อเด็ก", "เสื้อเด", "เสื้อ เด"])
+        # Use exact check for 'เสื้อเด', 'เสื้อ เด' and fuzzy for 'เด็ก', 'kids' to avoid false positive collision on 'เสื้อเป'
+        query_has_kids = (
+            any(k in query_lower for k in ["เสื้อเด", "เสื้อ เด", "เสื้อเด็ก", "ชุดเด็ก", "ของเด็ก"]) or
+            self._fuzzy_has_keyword(query_lower, ["เด็ก", "kid", "kids", "อนุบาล", "เด็กชาย", "เด็กหญิง"])
+        )
         query_has_crop = any(k in query_lower for k in ["crop", "ครอป", "เอวลอย"])
         query_not_shirt = any(neg in query_lower for neg in ["ไม่ใช่เสื้อ", "ไม่เอาเสื้อ", "นอกจากเสื้อ", "ไม่ ใช่ เสื้อ"]) or (re.search(r'ไม่.*เสื้อ', query_lower) is not None)
         query_has_bra = any(b in query_lower for b in ["บรา", "bra", "สปอร์ตบรา"])
-        query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "โปเล", "เสื้อโปเล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
+        query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "โปเล", "เสื้อโปเล", "เปเล", "เสื้อเปเล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
 
         query_has_pants = self._fuzzy_has_keyword(query_lower, ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
         query_has_unwear = self._fuzzy_has_keyword(query_lower, ["กางเกงใน", "กกน", "ชุดชั้นใน", "unwear", "briefs", "boxer"])
@@ -681,25 +685,26 @@ class ProductService:
                 r_vec = vector_rank_map.get(doc_id, 9999)
                 base_score = (1.0 / (k_constant + r_bm25)) + (1.0 / (k_constant + r_vec))
 
+                item_title_cat = f"{meta['name']} {meta.get('category', '')} {meta.get('style', '')}".lower()
                 item_haystack = meta.get("haystack", "")
 
-                # Strict Intent / Category Filter
+                # Strict Intent / Category Filter (Checked on title and category to avoid description text leakage)
                 if apply_strict_intent:
-                    if "polo" in detected_intents and not ("polo" in item_haystack or "โปโล" in item_haystack or "คอปก" in item_haystack or "เสื้อโปโล" in item_haystack or "หมวดหมู่: polo" in item_haystack):
+                    if "polo" in detected_intents and not any(k in item_title_cat for k in ["polo", "โปโล", "คอปก", "เสื้อโปโล"]):
                         continue
-                    if "crop" in detected_intents and not ("crop" in item_haystack or "ครอป" in item_haystack):
+                    if "crop" in detected_intents and not any(k in item_title_cat for k in ["crop", "ครอป"]):
                         continue
-                    if "babytee" in detected_intents and not ("babytee" in item_haystack or "เบบี้ที" in item_haystack):
+                    if "babytee" in detected_intents and not any(k in item_title_cat for k in ["babytee", "baby tee", "เบบี้ที"]):
                         continue
-                    if "oversize" in detected_intents and not ("oversize" in item_haystack or "โอเวอร์ไซส์" in item_haystack or "โอเวอไซ" in item_haystack or "ทรงหลวม" in item_haystack):
+                    if "oversize" in detected_intents and not any(k in item_title_cat for k in ["oversize", "โอเวอร์ไซส์", "โอเวอไซ", "ทรงหลวม"]):
                         continue
-                    if "jeans" in detected_intents and not ("jeans" in item_haystack or "ยีนส์" in item_haystack or "เดนิม" in item_haystack):
+                    if "jeans" in detected_intents and not any(k in item_title_cat for k in ["jeans", "ยีนส์", "เดนิม"]):
                         continue
-                    if "running" in detected_intents and not ("running" in item_haystack or "วิ่ง" in item_haystack or "รันนิ่ง" in item_haystack or "ออกกำลังกาย" in item_haystack):
+                    if "running" in detected_intents and not any(k in item_title_cat for k in ["running", "วิ่ง", "รันนิ่ง", "ออกกำลังกาย"]):
                         continue
-                    if "bag" in detected_intents and not ("bag" in item_haystack or "กระเป๋า" in item_haystack or "crossbody" in item_haystack or "tote" in item_haystack):
+                    if "bag" in detected_intents and not any(k in item_title_cat for k in ["bag", "กระเป๋า", "crossbody", "tote"]):
                         continue
-                    if "pants" in detected_intents and not ("pants" in item_haystack or "กางเกง" in item_haystack or "ขาสั้น" in item_haystack or "ขายาว" in item_haystack or "shorts" in item_haystack or "cargo" in item_haystack or "ยีนส์" in item_haystack):
+                    if "pants" in detected_intents and not any(k in item_title_cat for k in ["pants", "กางเกง", "ขาสั้น", "ขายาว", "shorts", "cargo", "ยีนส์"]):
                         continue
 
                 # Intent Boost (1.60x for polo, 1.25x for others)
@@ -903,6 +908,33 @@ class ProductService:
 
         total_count = len(all_candidate_items)
         final_items = all_candidate_items[offset : offset + top_k]
+
+        # Check if corrected_query provides crucial signals (intents / colors) that raw_query missed due to typos
+        corr_has_extra_signal = False
+        if corrected_query and corrected_query.strip().lower() != raw_query.strip().lower():
+            corr_intents = self._detect_query_intents(corrected_query)
+            corr_colors = self._detect_query_colors(corrected_query)
+            if (not detected_intents and corr_intents) or (not requested_colors and corr_colors):
+                corr_has_extra_signal = True
+
+        is_blind_pass1 = (total_count == 0) or (len(final_items) == 0) or corr_has_extra_signal
+
+        # Two-Pass Search & Query Relaxation: If Pass 1 is blind, corrupted, or returns 0 items, retry with corrected_query
+        if is_blind_pass1 and corrected_query and corrected_query.strip().lower() != raw_query.strip().lower():
+            print(f"🔄 [Two-Pass Search Fallback] Pass 1 lacked specific signals for '{raw_query}'. Retrying Pass 2 with '{corrected_query}'...")
+            res2 = self.search_products(
+                raw_query=corrected_query,
+                top_k=top_k,
+                offset=offset,
+                k_constant=k_constant,
+                return_dict=True,
+                corrected_query=None  # Prevent recursion
+            )
+            if res2.get("products"):
+                res2["fallback_message"] = f"ไม่พบสินค้าตรงกับ '{raw_query}' โดยตรง แต่แสดงผลลัพธ์ที่ใกล้เคียงที่สุดจาก '{corrected_query}' แทนครับ:"
+                if return_dict:
+                    return res2
+                return res2["products"]
 
         if return_dict:
             return {

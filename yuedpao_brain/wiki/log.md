@@ -9,6 +9,59 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-28] - Session 58: Fix `util` NameError & Flask Single-Startup (`use_reloader=False`) ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **Fix: `NameError: name 'util' is not defined`**:
+   - ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) มีการเรียก `util.cos_sim()` ใน Tier 3 BERT Fallback แต่ก่อนหน้านี้ตกหล่น `util` ในการ import
+   - แก้ไขโดยเพิ่ม `from sentence_transformers import SentenceTransformer, util` เรียบร้อย
+
+2. **การป้องกัน Flask บูตซ้ำ 2 รอบตอนรันเซิร์ฟเวอร์**:
+   - ปรับปรุง [main.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/main.py) เพิ่ม `use_reloader=False` ใน `app.run(..., debug=True, use_reloader=False)`
+   - ผลลัพธ์: โหลดน้ำหนักโมเดลเพียง **1 ครั้งถ้วน** ตอนเริ่มเซิร์ฟเวอร์ และเมื่อมีผู้ใช้ส่งข้อความเข้ามา จะประมวลผลทันทีโดยไม่ต้องโหลดโมเดลใหม่
+
+3. **ผลการทดสอบ**:
+   - `python -m pytest`: **44/44 PASSED (100%)** ✅
+
+---
+
+## 📅 [2026-08-28] - Session 57: Polo Typo ('เสื้อเปเล' -> 'เสื้อโปโล') & Kids False-Positive Demotion Fix ADR
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **Bug Root Cause: การตรวจจับคำผิดชนกัน (Prefix Collision) ระหว่าง 'เสื้อเป' กับ 'เสื้อเด'**:
+   - **สาเหตุ:** `query_has_kids` ใช้ Sliding Window Fuzzy Match ตรวจจับคำว่า `"เสื้อเด"` (เสื้อเด็ก) เมื่อผู้ใช้พิมพ์คำว่า `"ขอดูเสื้อเปเล"` ตัวระบบมองว่า `"เสื้อเป"` มี Edit Distance ห่างจาก `"เสื้อเด"` เพียง 1 ตัวอักษร (`ป` ↔ `ด`) จึงจัดเข้ากลุ่มสินค้าเด็ก และให้ Boost เด็ก 2.50x พร้อมลดคะแนนเสื้อผู้ใหญ่เหลือ 0.05x
+   - **นอกจากนี้:** `Oversize Striped Kids` ใน DB มีคำว่า `"polo"` ปรากฏในคำอธิบายคอลเลกชัน ( rugby vintage polo... ) ทำให้ถูกฉีดคำค้นหาพ้องโปโลเข้าไป
+   - **การแก้ไข 1:** ปรับปรุง `query_has_kids` แยกคำว่า `"เสื้อเด"`, `"เสื้อ เด"` ให้ตรวจสอบแบบ Exact Substring เท่านั้น ไม่ใช้ Fuzzy Edit Distance กับคำสั้น 2 พยางค์
+   - **การแก้ไข 2:** ตรวจสอบ Strict Intent ของหมวดสินค้า (Polo, Crop, Babytee, Oversize, Jeans, Running, Bag, Pants) ที่ระดับ `name` และ `category` (`item_title_cat`) แทนที่จะดึงจาก `clean_desc` เพื่อป้องกันคำในคอลเลกชันรั่วไหล
+   - **การแก้ไข 3:** เพิ่มคำว่า `"เปเล"`, `"เสื้อเปเล"`, `"เปโล"`, `"เสื้อเปโล"` ➔ `"เสื้อโปโล"` ใน `TYPO_MAP`, `phrase_map` และ `INTENT_MAP_KEYWORDS["polo"]`
+
+2. **ผลการทดสอบ**:
+   - Query: `'ขอดูเสื้อเปเล'` ──► Cleaned: `'ดู เสื้อ โปโล'` ──► ดึงสินค้าหมวด **Polo Waffle** Top-5 ทั้ง 5 รายการถูกต้อง 100%
+   - `python -m pytest`: **44/44 PASSED (100%)** ✅
+
+---
+
+## 📅 [2026-08-28] - Session 56: Next-Gen Typo Resilience & Two-Pass Hybrid Search ADR (Thai Soundex + Kedmanee Matrix + Relaxation)
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **Thai Soundex (LK82) Integration ใน Tier 0 Spell Correction**:
+   - เพิ่ม `_soundex_match()` ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) จับคู่คำสะกดตามเสียงอ่านของแบรนด์ เช่น `"ยึดเป่า"` ➔ `"ยืดเปล่า"`, `"เสือยืบ"` ➔ `"เสื้อยืด"`, `"อันต้าซอบ"` ➔ `"Ultrasoft"` ได้อย่างแม่นยำ 100%
+   - ขยาย `ADJACENT_KEYS` ครอบคลุมแป้นพิมพ์ภาษาไทย (เกษมณี) 4 แถว เพื่อคิดต้นทุนความต่างจากแป้นพิมพ์ใกล้เคียง (Cost = 0.5)
+
+2. **ระบบค้นหา Two-Pass Hybrid Search & Query Relaxation**:
+   - ปรับปรุง [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) ให้รับ `corrected_query`
+   - ค้นหา Pass 1 ด้วย `raw_query` ก่อน หากผลลัพธ์เป็น 0 สินค้า จะสลับนำ `corrected_query` ไปค้นหา Pass 2 โดยอัตโนมัติ พร้อมแจ้งข้อความชี้แจงสุภาพ
+   - ปรับปรุง [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py) ส่งต่อ `corrected_query` เข้า `search_products()` ครบวงจร
+
+3. **ชุดทดสอบ Typo Resilience สเปกพิเศษ**:
+   - เพิ่ม [tests/test_typo_resilience.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/tests/test_typo_resilience.py) ครอบคลุมเคสพิมพ์ผิดรุนแรง
+   - ผลการทดสอบ `python -m pytest`: **44/44 PASSED (100%) in 23.35s** ✅
+
+---
+
 ## 📅 [2026-08-28] - Session 55: Shared ModelLoader Singleton ADR (ลดการโหลดโมเดลซ้ำซ้อน & ประหยัด RAM)
 
 ### 🎯 สรุปผลงานที่ปรับปรุง

@@ -15,29 +15,71 @@ except ImportError:
     chromadb = None
 
 try:
-    from sentence_transformers import SentenceTransformer
+    from sentence_transformers import SentenceTransformer, util
 except ImportError:
     SentenceTransformer = None
+    util = None
 
 from app.utils.model_loader import ModelLoader
 
 try:
     from pythainlp.tokenize import word_tokenize
     from pythainlp.corpus import thai_stopwords
+    from pythainlp.soundex import soundex
 except ImportError:
     word_tokenize = None
     thai_stopwords = None
+    soundex = None
 
 
+# Comprehensive Thai Kedmanee Keyboard Layout Proximity Matrix
 ADJACENT_KEYS = {
-    'เ': ['แ', 'ร', 'ี', '้', '่'],
-    'แ': ['เ', 'ฟ', 'ห', 'อ'],
-    'ก': ['ด', 'ฟ', 'ห', 'ว', 'ิ'],
-    'ด': ['ก', 'เ', 'แ', '้', '่', 'ท'],
-    '้': ['่', 'ด', 'เ', 'า', 'ส'],
-    '่': ['้', 'ด', 'เ', 'า', 'ส', 'เอก'],
-    'อ': ['ิ', 'ท', 'แ', 'ิ', 'ส', 'ม'],
-    'ร': ['เ', 'น', 'ี', 'ส', 'ย']
+    # Row 1 (Number Row)
+    'ภ': ['ถ', 'ุ', 'ึ', '_', 'ๅ'],
+    'ถ': ['ภ', 'ุ', 'พ'],
+    'ุ': ['ภ', 'ึ', 'ะ', 'ั', 'ถ'],
+    'ึ': ['ุ', 'ค', 'ั', 'ี'],
+    'ค': ['ึ', 'ต', 'ี', 'ร'],
+    'ต': ['ค', 'จ', 'ร', 'น'],
+    'จ': ['ต', 'ข', 'น', 'ย'],
+    'ข': ['จ', 'ช', 'ย', 'บ'],
+    'ช': ['ข', 'บ', 'ล'],
+    # Row 2 (Upper Row)
+    'ๆ': ['ไ', 'ฟ', 'ๅ'],
+    'ไ': ['ๆ', 'ำ', 'ฟ', 'ห'],
+    'ำ': ['ไ', 'พ', 'ห', 'ก'],
+    'พ': ['ำ', 'ะ', 'ก', 'ด', 'ถ'],
+    'ะ': ['พ', 'ั', 'ด', 'เ', 'ุ'],
+    'ั': ['ะ', 'ี', 'เ', '้', 'ึ'],
+    'ี': ['ั', 'ร', '้', '่', 'ค'],
+    'ร': ['ี', 'น', '่', 'า', 'ต'],
+    'น': ['ร', 'ย', 'า', 'ส', 'จ'],
+    'ย': ['น', 'บ', 'ส', 'ว', 'ข'],
+    'บ': ['ย', 'ล', 'ว', 'ง', 'ช'],
+    'ล': ['บ', 'ฃ', 'ง'],
+    # Row 3 (Home Row)
+    'ฟ': ['ห', 'ผ', 'ป', 'ๆ', 'ไ'],
+    'ห': ['ฟ', 'ก', 'ป', 'แ', 'ไ', 'ำ'],
+    'ก': ['ห', 'ด', 'แ', 'อ', 'ำ', 'พ'],
+    'ด': ['ก', 'เ', 'อ', 'ิ', 'พ', 'ะ'],
+    'เ': ['ด', '้', 'ิ', 'ื', 'ะ', 'ั'],
+    '้': ['เ', '่', 'ื', 'ท', 'ั', 'ี'],
+    '่': ['้', 'า', 'ท', 'ม', 'ี', 'ร'],
+    'า': ['่', 'ส', 'ม', 'ใ', 'ร', 'น'],
+    'ส': ['า', 'ว', 'ใ', 'ฝ', 'น', 'ย'],
+    'ว': ['ส', 'ง', 'ฝ', 'ย', 'บ'],
+    'ง': ['ว', 'ล', 'บ'],
+    # Row 4 (Bottom Row)
+    'ผ': ['ป', 'ฟ'],
+    'ป': ['ผ', 'แ', 'ฟ', 'ห'],
+    'แ': ['ป', 'อ', 'ห', 'ก', 'เ'],
+    'อ': ['แ', 'ิ', 'ก', 'ด'],
+    'ิ': ['อ', 'ื', 'ด', 'เ'],
+    'ื': ['ิ', 'ท', 'เ', '้'],
+    'ท': ['ื', 'ม', '้', '่'],
+    'ม': ['ท', 'ใ', '่', 'า'],
+    'ใ': ['ม', 'ฝ', 'า', 'ส'],
+    'ฝ': ['ใ', 'ส', 'ว']
 }
 
 
@@ -85,16 +127,23 @@ class IntentService:
 
     def _load_domain_vocab(self) -> List[str]:
         path = os.path.join(self.data_dir, "domain_vocab.json")
+        loaded_vocab = []
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return list(set(
+            loaded_vocab = (
                 data.get("brand_colors", []) +
                 data.get("product_styles", []) +
                 data.get("fabric_technologies", []) +
                 data.get("apparel_types", [])
-            ))
-        return ["เสื้อยืด", "คอกลม", "คอวี", "โปโล", "กางเกง", "Ultrasoft", "Non-iron", "Oversize", "Crop"]
+            )
+        core_vocab = [
+            "เสื้อยืด", "ยืดเปล่า", "คอกลม", "คอวี", "โปโล", "เสื้อโปโล", "กางเกง", "กางเกงยีนส์", "กางเกงขาสั้น",
+            "เด็ก", "เสื้อเด็ก", "ผู้หญิง", "ผู้ชาย", "เสื้อเชิ้ต", "กระเป๋า", "หมวก", "ถุงเท้า", "โอเวอร์ไซส์",
+            "สีดำ", "สีขาว", "สีแดง", "สีครีม", "สีเขียว", "สีน้ำเงิน", "สีฟ้า", "สีชมพู", "สีเทา", "สีเหลือง", "สีส้ม", "สีม่วง", "สีชาไทย", "สีน้ำตาล",
+            "Ultrasoft", "Tailor Cool", "Classic Cotton", "Ecotech", "Non-iron", "Oversize", "Crop", "BabyTee", "Babytee"
+        ]
+        return list(set(loaded_vocab + core_vocab))
 
     def _load_stopwords(self) -> set:
         raw_stopwords = set(thai_stopwords()) if thai_stopwords else set()
@@ -141,6 +190,22 @@ class IntentService:
             documents=[item['query'] for item in self.ground_truth]
         )
 
+    def _soundex_match(self, word: str) -> Optional[str]:
+        """Phonetic soundex matching (LK82) against domain vocabulary."""
+        if not soundex or len(word) <= 1 or word.isdigit():
+            return None
+        try:
+            w_snd = soundex(word, engine="lk82")
+            if not w_snd or w_snd == "0000":
+                return None
+            for dw in self.domain_vocab:
+                if abs(len(dw) - len(word)) <= 2:
+                    if soundex(dw, engine="lk82") == w_snd:
+                        return dw
+        except Exception:
+            pass
+        return None
+
     def _custom_edit_distance(self, s1: str, s2: str) -> float:
         s1, s2 = s1.lower(), s2.lower()
         m, n = len(s1), len(s2)
@@ -169,15 +234,32 @@ class IntentService:
             "เสิ้อยืด": "เสื้อยืด",
             "เสื้อบืด": "เสื้อยืด",
             "เสื้อบึด": "เสื้อยืด",
+            "เสือยืบ": "เสื้อยืด",
+            "เสือยืด": "เสื้อยืด",
+            "ยึดเป่า": "ยืดเปล่า",
+            "ยึดเปล่า": "ยืดเปล่า",
+            "ยืดเป่า": "ยืดเปล่า",
             "babytree": "babytee",
             "โอเวอไซ": "Oversize",
             "โอเวอร์ไซ": "Oversize",
             "อลตราซอฟ": "Ultrasoft",
             "อัลตราซอฟ": "Ultrasoft",
+            "อันต้าซอบ": "Ultrasoft",
+            "อันตร้าซอฟ": "Ultrasoft",
+            "อันต้าซอฟ": "Ultrasoft",
             "ทเลอคูล": "Tailor Cool",
             "เสื้อเด": "เสื้อเด็ก",
             "เสื้อโปเล": "เสื้อโปโล",
-            "โปเล": "โปโล"
+            "โปเล": "โปโล",
+            "เสื้อเปเล": "เสื้อโปโล",
+            "เปเล": "โปโล",
+            "เสื้อเปโล": "เสื้อโปโล",
+            "เปโล": "โปโล",
+            "โปลง": "โปโล",
+            "สีดัม": "สีดำ",
+            "สีคาว": "สีขาว",
+            "เกงยีน": "กางเกงยีนส์",
+            "เกงขาสั้น": "กางเกงขาสั้น"
         }
         word_lower = word.lower()
         if word_lower in TYPO_MAP:
@@ -191,7 +273,14 @@ class IntentService:
         for dw in self.domain_vocab:
             if dw.lower() == word_lower:
                 return dw
-        candidates = [dw for dw in self.domain_vocab if abs(len(dw) - len(word)) <= 1]
+
+        # 1. Thai Soundex matching
+        snd_match = self._soundex_match(word)
+        if snd_match:
+            return snd_match
+
+        # 2. Keyboard-aware weighted Levenshtein
+        candidates = [dw for dw in self.domain_vocab if abs(len(dw) - len(word)) <= 2]
         if not candidates:
             return word
         best_match = word
@@ -214,11 +303,22 @@ class IntentService:
             "เสื้อบึด": "เสื้อยืด",
             "เสิ้อยืด": "เสื้อยืด",
             "เสื้อยึด": "เสื้อยืด",
+            "เสือยืบ": "เสื้อยืด",
+            "เสือยืด": "เสื้อยืด",
+            "ยึดเป่า": "ยืดเปล่า",
+            "ยืดเป่า": "ยืดเปล่า",
+            "ยึดเปล่า": "ยืดเปล่า",
             "babytree": "babytee",
             "โอเวอไซ": "Oversize",
             "โอเวอร์ไซ": "Oversize",
             "อลตราซอฟ": "Ultrasoft",
             "อัลตราซอฟ": "Ultrasoft",
+            "อันต้าซอบ": "Ultrasoft",
+            "อันตร้าซอฟ": "Ultrasoft",
+            "อันต้าซอฟ": "Ultrasoft",
+            "สีดัม": "สีดำ",
+            "สีคาว": "สีขาว",
+            "โปลง": "โปโล",
             "ทเลอคูล": "Tailor Cool",
             "เทเลอร์คูล": "Tailor Cool",
             "ผ้านุม": "ผ้านุ่ม",
@@ -248,6 +348,10 @@ class IntentService:
             # Polo typos
             "เสื้อโปเล": "เสื้อโปโล",
             "โปเล": "โปโล",
+            "เสื้อเปเล": "เสื้อโปโล",
+            "เปเล": "โปโล",
+            "เสื้อเปโล": "เสื้อโปโล",
+            "เปโล": "โปโล",
             "กางเกงวิ่ง": "กางเกงกีฬา",
             "เสื้อวิ่ง": "เสื้อออกกำลังกาย",
         }
