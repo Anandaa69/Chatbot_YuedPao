@@ -640,7 +640,8 @@ class ProductService:
         # Pre-compute query-level flags once (outside RRF loop for massive speedup)
         query_lower = raw_query.lower()
         requested_vibes = self._detect_query_style_vibes(raw_query)
-        query_has_kids = any(k in query_lower for k in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก"])
+        # Use fuzzy match for kids so typos like 'เด็ห', 'เดก', 'เด็ค' are caught
+        query_has_kids = self._fuzzy_has_keyword(query_lower, ["เด็ก", "kid", "kids", "อนุบาล", "ลูก", "เด็กชาย", "เด็กหญิง", "เสื้อเด็ก"])
         query_has_crop = any(k in query_lower for k in ["crop", "ครอป", "เอวลอย"])
         query_not_shirt = any(neg in query_lower for neg in ["ไม่ใช่เสื้อ", "ไม่เอาเสื้อ", "นอกจากเสื้อ", "ไม่ ใช่ เสื้อ"]) or (re.search(r'ไม่.*เสื้อ', query_lower) is not None)
         query_has_bra = any(b in query_lower for b in ["บรา", "bra", "สปอร์ตบรา"])
