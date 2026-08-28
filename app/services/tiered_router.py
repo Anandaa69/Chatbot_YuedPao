@@ -5,6 +5,8 @@ Dispatches user inquiries based on Intent Classification output to appropriate S
 
 import sqlite3
 import os
+import re
+import random
 from typing import Dict, Any, List, Optional
 from app.services.intent_service import IntentService
 from app.services.product_service import ProductService
@@ -52,8 +54,25 @@ class TieredRouter:
         flex_payload = None
         has_more = False
         next_offset_val = 5
-        
-        if intent == "product_search":
+
+        if intent == "greeting":
+            greetings = [
+                "สวัสดีครับ! 👋 ยินดีต้อนรับสู่ YuedPao Chatbot",
+                "หวัดดีครับ! 😊 ยินดีให้บริการที่ YuedPao",
+                "สวัสดีครับ! 🙌 ยินดีต้อนรับสู่ร้าน YuedPao",
+            ]
+            reply_text = (
+                f"{random.choice(greetings)}\n\n"
+                "🛍️ ฉันช่วยคุณได้เรื่องอะไรบ้าง:\n"
+                "1️⃣ ค้นหาสินค้า – พิมพ์ว่า 'เสื้อยืดผู้หญิงสีดำ ไม่เกิน 300'\n"
+                "2️⃣ แนะนำไซส์ – บอกส่วนสูง/น้ำหนัก/รอบอก เช่น 'สูง 165 หนัก 55'\n"
+                "3️⃣ เปรียบเทียบผ้า – พิมพ์ว่า 'ผ้า Ultrasoft ต่างกับ Tailor Cool ยังไง'\n"
+                "4️⃣ คูปองส่วนลด – พิมพ์ว่า 'มีโค้ดส่วนลดไหม'\n"
+                "5️⃣ โปรโมชัน – พิมพ์ว่า 'ดีลวันนี้มีอะไรบ้าง'\n\n"
+                "💬 ลองพิมพ์มาได้เลยครับ!"
+            )
+
+        elif intent == "product_search":
             search_res = self.product_service.search_products(raw_query, top_k=5, offset=0, return_dict=True)
             products = search_res["products"]
             fallback_msg = search_res.get("fallback_message")

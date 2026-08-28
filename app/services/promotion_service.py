@@ -21,6 +21,8 @@ try:
 except ImportError:
     SentenceTransformer = None
 
+from app.utils.model_loader import ModelLoader
+
 try:
     from pythainlp.tokenize import word_tokenize
 except ImportError:
@@ -43,12 +45,8 @@ class PromotionService:
         self.db_path = os.path.join(base_dir, "yuedpao_chatbot.db")
         self.chroma_path = os.path.join(base_dir, "data", "chroma")
         
-        self.bert_model = None
-        if SentenceTransformer:
-            try:
-                self.bert_model = SentenceTransformer('intfloat/multilingual-e5-small')
-            except Exception as e:
-                print(f"⚠️ Warning: Could not load SentenceTransformer in PromotionService: {e}")
+        # Load BERT model via ModelLoader singleton
+        self.bert_model = ModelLoader.get_embedding_model()
 
         self.promotions = []
         self.documents = []

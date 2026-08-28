@@ -15,9 +15,11 @@ except ImportError:
     chromadb = None
 
 try:
-    from sentence_transformers import SentenceTransformer, util
+    from sentence_transformers import SentenceTransformer
 except ImportError:
     SentenceTransformer = None
+
+from app.utils.model_loader import ModelLoader
 
 try:
     from pythainlp.tokenize import word_tokenize
@@ -50,13 +52,8 @@ class IntentService:
         self.stop_words = self._load_stopwords()
         self.ground_truth = self._load_ground_truth()
         
-        # Load BERT model
-        self.bert_model = None
-        if SentenceTransformer:
-            try:
-                self.bert_model = SentenceTransformer('intfloat/multilingual-e5-small')
-            except Exception as e:
-                print(f"⚠️ Warning: Could not load BERT model: {e}")
+        # Load BERT model via ModelLoader singleton
+        self.bert_model = ModelLoader.get_embedding_model()
                 
         # Setup ChromaDB Few-Shot Vector Store
         self.chroma_collection = None
@@ -72,6 +69,7 @@ class IntentService:
                 
         # Cache Passages Embedding for Tier 3 Fallback
         self.INTENT_PASSAGES = {
+            "greeting": "passage: สวัสดี หวัดดี ดีจ้า ดีครับ ดีค่ะ hello hi ทักทาย มีใครอยู่ไหม บอทอยู่ไหม ช่วยได้ไหม ยินดีต้อนรับ เริ่มต้นใช้งาน",
             "product_search": "passage: ซื้อเสื้อ หาเสื้อ ขอดูเสื้อ อยากเห็นเสื้อ สั่งซื้อเสื้อผ้า เสื้อยืด กางเกง กระเป๋า ยีนส์ เสื้อโปโล เสื้อเชิ้ต ราคาสินค้า สี ไซส์ ทรงเสื้อ มีงบ มีราคา ไม่เกิน",
             "see_more_products": "passage: ขอดูเพิ่มเติม ดูเพิ่มเติม ขอดูเพิ่ม ขออีก ดูเพิ่ม ขอเพิ่ม ดูรุ่นอื่น ดูต่อ ขอเพิ่มอีก ขอดูอีก ถัดไป หน้าถัดไป",
             "size_recommendation": "passage: สอบถามไซส์ แนะนำไซส์เสื้อ ขนาดเสื้อ รอบอก สัดส่วนความสูงและน้ำหนัก ไซส์ไหนดี ใส่ไซส์อะไร เหมาะกับไซส์อะไร ส่วนสูง น้ำหนัก อก",
@@ -176,7 +174,10 @@ class IntentService:
             "โอเวอร์ไซ": "Oversize",
             "อลตราซอฟ": "Ultrasoft",
             "อัลตราซอฟ": "Ultrasoft",
-            "ทเลอคูล": "Tailor Cool"
+            "ทเลอคูล": "Tailor Cool",
+            "เสื้อเด": "เสื้อเด็ก",
+            "เสื้อโปเล": "เสื้อโปโล",
+            "โปเล": "โปโล"
         }
         word_lower = word.lower()
         if word_lower in TYPO_MAP:
@@ -233,6 +234,8 @@ class IntentService:
             "มัดย้อมม": "มัดย้อม",
             "คอปกก": "คอปก",
             # Kids / demographic typos
+            "เสื้อ เด": "เสื้อเด็ก",
+            "เสื้อเด": "เสื้อเด็ก",
             "เสื้อเด็ห": "เสื้อเด็ก",
             "เสิ้อเด็ก": "เสื้อเด็ก",
             "เด็ห": "เด็ก",
@@ -242,6 +245,9 @@ class IntentService:
             "เดก": "เด็ก",
             "เด็ค": "เด็ก",
             "เดี่ยก": "เด็ก",
+            # Polo typos
+            "เสื้อโปเล": "เสื้อโปโล",
+            "โปเล": "โปโล",
             "กางเกงวิ่ง": "กางเกงกีฬา",
             "เสื้อวิ่ง": "เสื้อออกกำลังกาย",
         }
@@ -284,6 +290,30 @@ class IntentService:
             })
 
         # --- Tier 1 Priority Rules ---
+
+        # --- Greeting Detection (Tier 1) ---
+        greeting_triggers = [
+            "สวัสดี", "หวัดดี", "ดีจ้า", "ดีครับ", "ดีค่ะ", "hello", "hi", "hey",
+            "มีใครอยู่ไหม", "บอทอยู่ไหม", "อยู่ไหม", "ช่วยได้ไหม", "อยากถาม",
+            "ยินดีต้อนรับ", "เริ่มต้น", "มีอะไรช่วยได้บ้าง", "ขอความช่วยเหลือ"
+        ]
+        # Greeting only when query is short and purely a greeting (no product keywords)
+        product_hint_kws = ["เสื้อ", "กางเกง", "ราคา", "งบ", "สี", "ไซส์", "ผ้า", "ส่วนลด", "โปร"]
+        is_pure_greeting = (
+            any(gt in raw_lower for gt in greeting_triggers)
+            and not any(pk in raw_lower for pk in product_hint_kws)
+            and len(raw_query.strip()) <= 30
+        )
+        if is_pure_greeting:
+            total_time = (time.perf_counter() - start_t) * 1000.0
+            return _return_with_log({
+                "intent": "greeting",
+                "tier_used": "Tier 1: Priority Rule (Greeting)",
+                "corrected_query": corrected_query,
+                "confidence": 1.0,
+                "latency_ms": total_time
+            })
+
         search_help_triggers = ["วิธีการค้นหา", "วิธีค้นหา", "ค้นหายังไง", "วิธีค้นหาสินค้า", "ค้นหาทำยังไง", "ค้นหาอย่างไร"]
         if any(sht in raw_lower for sht in search_help_triggers):
             total_time = (time.perf_counter() - start_t) * 1000.0
@@ -369,8 +399,8 @@ class IntentService:
                 "latency_ms": total_time
             })
 
-        product_triggers = ["ไม่เกิน", "งบ", "บาท", "ขอดู", "อยากได้", "อยากเห็น", "หาเสื้อ", "มีเสื้อ", "ขอเสื้อ", "เนื้อผ้า", "ผ้า", "ราคาประมาณ", "สักตัว", "ขายดี", "ฮิต", "ยอดฮิต", "best seller", "นิยม", "กระเป๋า", "กางเกง", "ยีนส์", "โปโล", "ครอป", "เบบี้ที", "บรา", "สปอร์ตบรา", "bra", "หมวก"]
-        if any(pt in raw_lower for pt in product_triggers):
+        product_triggers = ["ไม่เกิน", "งบ", "บาท", "ขอดู", "อยากได้", "อยากเห็น", "หาเสื้อ", "มีเสื้อ", "ขอเสื้อ", "เนื้อผ้า", "ผ้า", "ราคาประมาณ", "สักตัว", "ขายดี", "ฮิต", "ยอดฮิต", "best seller", "นิยม", "กระเป๋า", "กางเกง", "ยีนส์", "โปโล", "เสื้อโปเล", "โปเล", "เสื้อเด็ก", "ครอป", "เบบี้ที", "บรา", "สปอร์ตบรา", "bra", "หมวก"]
+        if any(pt in raw_lower or pt in corrected_query for pt in product_triggers):
             total_time = (time.perf_counter() - start_t) * 1000.0
             return _return_with_log({
                 "intent": "product_search",

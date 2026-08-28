@@ -19,6 +19,8 @@ try:
 except ImportError:
     SentenceTransformer = None
 
+from app.utils.model_loader import ModelLoader
+
 try:
     from pythainlp.tokenize import word_tokenize
 except ImportError:
@@ -61,8 +63,8 @@ PERSONA_SYNONYMS = {
     # They are matched separately via STYLE_VIBE_KEYWORDS_MAP to prevent cross-contamination
     # into all OVERSIZED-category products (e.g. Babytee Striped) via document expansion.
     "Oversize": "เสื้อยืด ทรงหลวม อกใหญ่ เผื่อไหล่ ไหล่ตก คนอ้วน ตั้งครรภ์ ตัวใหญ่ ใส่สบาย วันพักผ่อน คอกลม โอเวอไซ โอเวอร์ไซ โอเวอร์ไซส์ โอเวอไซส์ ผู้ชาย ผู้หญิง ชาย หญิง สาวอวบ ซ่อนหน้าท้อง ซ่อนพุง คนท้อง",
-    "Kid": "เด็ก เสื้อเด็ก ของขวัญเด็ก เด็กอนุบาล ลายน่ารัก kidซ คิดส์ คิด",
-    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล ปกคอ คอปก เสื้อคอปก เสื้อมีปก ปก ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่",
+    "Kid": "เด็ก เสื้อเด็ก เสื้อเด เสื้อ เด ของขวัญเด็ก เด็กอนุบาล ลายน่ารัก kidซ คิดส์ คิด",
+    "Polo": "ใส่ทำงาน พนักงานบริษัท พนักงานโรงแรม ยูนิฟอร์ม สุภาพ งานสังสรรค์ ประชุม ปกโปโล เสื้อโปโล โปเล เสื้อโปเล ปกคอ คอปก เสื้อคอปก เสื้อมีปก ปก ผู้ใหญ่ อายุ 40 50 ดูดี ไม่ดูแก่ ไม่แก่",
     "Crop": "เสื้อครอป น่ารัก น่ารักๆ สาวๆ เที่ยวทะเล คอกลม ทรงสั้นเอว เอวสูง ตัวเล็ก คิ้วท์ๆ หวานๆ สดใส y2k",
     "Running": "ใส่วิ่ง ออกกำลังกาย ระบายอากาศ ระบายความร้อน อากาศไทย ไม่ร้อน รันนิ่ง สปอร์ต เดินป่า ไม่หมองจากเหงื่อ ไม่มีกลิ่นเหงื่อ",
     "Tie Dye": "มัดย้อม ไทด์ดาย ไทน์ดาย ซัมเมอร์ เที่ยว สีสดใส มัดยอม ฟัดย้อม ถ่ายรูป content อาร์ต",
@@ -112,7 +114,7 @@ COLOR_KEYWORDS_MAP = {
 }
 
 INTENT_MAP_KEYWORDS = {
-    "polo": ["โปโล", "polo", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่", "คอปก", "เสื้อคอปก", "ปก", "เสื้อมีปก"],
+    "polo": ["โปโล", "polo", "เสื้อโปเล", "โปเล", "สุภาพ", "ทำงาน", "พนักงานโรงแรม", "ประชุม", "ผู้ใหญ่", "ไม่แก่", "คอปก", "เสื้อคอปก", "ปก", "เสื้อมีปก"],
     "babytee": ["เบบี้ที", "babytee", "baby tee", "เสื้อตัวเล็ก"],
     "ultrasoft": ["ผ้านุ่ม", "ไม่ยับ", "ไม่ต้องรีด", "อัลตราซอฟ", "อัลตราซอฟท์", "โคตรนุ่ม", "โคตนุ่ม", "เดินห้าง", "สบายตา"],
     "classic cotton": ["ฝ้าย", "cotton", "ผิวแพ้ง่าย", "ไม่คัน", "เนื้อผ้าแน่น", "ทรงตรง", "ไม่ยืดหลังซัก"],
@@ -142,12 +144,8 @@ class ProductService:
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.db_path = os.path.join(base_dir, "yuedpao_chatbot.db")
         
-        self.bert_model = None
-        if SentenceTransformer:
-            try:
-                self.bert_model = SentenceTransformer('intfloat/multilingual-e5-small')
-            except Exception as e:
-                print(f"⚠️ Warning: Could not load SentenceTransformer in ProductService: {e}")
+        # Load BERT model via ModelLoader singleton
+        self.bert_model = ModelLoader.get_embedding_model()
 
         self.products = []
         self.doc_ids = []
@@ -551,7 +549,7 @@ class ProductService:
         q_lower = query.lower()
         
         # Check kids demographic first to prevent "เด็กชาย" matching adult "ชาย"
-        if any(kw in q_lower for kw in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก"]):
+        if any(kw in q_lower for kw in ["เด็ก", "kid", "kids", "อนุบาล", "ลูก", "เสื้อเด็ก", "เสื้อเด", "เสื้อ เด"]):
             if any(kw in q_lower for kw in ["เด็กหญิง", "ลูกสาว", "ผู้หญิง"]):
                 return "kids_female"
             if any(kw in q_lower for kw in ["เด็กชาย", "ลูกชาย", "ผู้ชาย"]):
@@ -640,12 +638,12 @@ class ProductService:
         # Pre-compute query-level flags once (outside RRF loop for massive speedup)
         query_lower = raw_query.lower()
         requested_vibes = self._detect_query_style_vibes(raw_query)
-        # Use fuzzy match for kids so typos like 'เด็ห', 'เดก', 'เด็ค' are caught
-        query_has_kids = self._fuzzy_has_keyword(query_lower, ["เด็ก", "kid", "kids", "อนุบาล", "ลูก", "เด็กชาย", "เด็กหญิง", "เสื้อเด็ก"])
+        # Use fuzzy match for kids so typos like 'เด็ห', 'เดก', 'เด็ค', 'เสื้อเด' are caught
+        query_has_kids = self._fuzzy_has_keyword(query_lower, ["เด็ก", "kid", "kids", "อนุบาล", "ลูก", "เด็กชาย", "เด็กหญิง", "เสื้อเด็ก", "เสื้อเด", "เสื้อ เด"])
         query_has_crop = any(k in query_lower for k in ["crop", "ครอป", "เอวลอย"])
         query_not_shirt = any(neg in query_lower for neg in ["ไม่ใช่เสื้อ", "ไม่เอาเสื้อ", "นอกจากเสื้อ", "ไม่ ใช่ เสื้อ"]) or (re.search(r'ไม่.*เสื้อ', query_lower) is not None)
         query_has_bra = any(b in query_lower for b in ["บรา", "bra", "สปอร์ตบรา"])
-        query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
+        query_has_shirt = (any(k in query_lower for k in ["เสื้อ", "shirt", "tshirt", "t-shirt", "โปโล", "โปเล", "เสื้อโปเล", "คอกลม", "คอวี", "ครอป", "เบบี้ที", "แขนยาว", "แขนสั้น"]) and not query_not_shirt and not query_has_bra)
 
         query_has_pants = self._fuzzy_has_keyword(query_lower, ["กางเกง", "ขายาว", "ขาสั้น", "ยีนส์", "pants", "shorts", "cargo"])
         query_has_unwear = self._fuzzy_has_keyword(query_lower, ["กางเกงใน", "กกน", "ชุดชั้นใน", "unwear", "briefs", "boxer"])

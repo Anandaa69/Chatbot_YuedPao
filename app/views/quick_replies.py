@@ -56,7 +56,32 @@ def build_quick_reply_items(intent: str = "", has_more: bool = False, next_offse
     ])
 
     # Re-order based on current intent if needed
-    if intent in ("coupon_ticket", "promotion_deal", "promotion_discount"):
+    if intent == "greeting":
+        # For greeting: show product search, random rec, coupon, fabric, size
+        items_ordered = [
+            {
+                "type": "action",
+                "action": {"type": "message", "label": "🔍 ค้นหาสินค้า", "text": "มีเสื้อยืดน่าสนใจอะไรบ้าง"}
+            },
+            {
+                "type": "action",
+                "action": {"type": "message", "label": "🎲 สุ่มแนะนำ", "text": "สุ่มแนะนำสินค้า"}
+            },
+            {
+                "type": "action",
+                "action": {"type": "message", "label": "🎟️ คูปองส่วนลด", "text": "มีโปรโมชันคูปองอะไรบ้าง"}
+            },
+            {
+                "type": "action",
+                "action": {"type": "message", "label": "👕 เปรียบเทียบผ้า", "text": "เปรียบเทียบคุณสมบัติผ้า"}
+            },
+            {
+                "type": "action",
+                "action": {"type": "message", "label": "📏 ดูตารางไซส์", "text": "ขอตารางไซส์หน่อย"}
+            },
+        ]
+        return {"items": items_ordered[:5]}
+    elif intent in ("coupon_ticket", "promotion_deal", "promotion_discount"):
         # Put random product recommendation upfront
         if not has_more:
             items[0], items[1] = items[1], items[0]

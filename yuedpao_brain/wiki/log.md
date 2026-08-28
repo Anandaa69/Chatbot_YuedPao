@@ -9,6 +9,40 @@ sources: ["sources/ออกแบบฟังก์ชัน LINE Chatbot ส�
 
 Backlink: [[index]]
 
+## 📅 [2026-08-28] - Session 55: Shared ModelLoader Singleton ADR (ลดการโหลดโมเดลซ้ำซ้อน & ประหยัด RAM)
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **Shared Model Loader Singleton (`app/utils/model_loader.py`)**:
+   - **ปัญหาเดิม:** `IntentService`, `ProductService` และ `PromotionService` มีการสร้าง `SentenceTransformer('intfloat/multilingual-e5-small')` แยกกันคนละ instance ส่งผลให้ต้องโหลดน้ำหนักโมเดลซ้ำ 3 รอบ (และใน Flask `debug=True` โหลดซ้ำถึง 6 รอบ) สิ้นเปลือง RAM เพิ่ม ~1 GB+
+   - **การแก้ไข:** สร้างคลาส `ModelLoader` จัดเก็บ instance ของโมเดลแบบ Thread-Safe Singleton และอัปเดตทั้ง 3 Service ให้ดึงโมเดลผ่าน `ModelLoader.get_embedding_model()`
+   - **ผลลัพธ์:** โหลดโมเดลเพียงครั้งเดียวต่อ Process ประหยัด RAM และบูตเซิร์ฟเวอร์เร็วกว่าเดิมอย่างเห็นได้ชัด
+
+2. **ผลการทดสอบ Automated Pytest Suite**:
+   - `python -m pytest`: **39/39 PASSED** ครบทุกโมดูล (Intents, Models, Services, Views, Webhook) ✅
+
+---
+
+## 📅 [2026-08-28] - Session 54: Greeting Intent Classification & Typo Resilience ADR ('เสื้อ เด' -> เสื้อเด็ก, 'เสื้อโปเล' -> เสื้อโปโล)
+
+### 🎯 สรุปผลงานที่ปรับปรุง
+
+1. **ระบบตรวจจับ Greeting Intent & ข้อความทักทายพร้อมแนะนำการใช้งาน**:
+   - เพิ่ม Intent `greeting` ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py) รองรับ Tier 1 Priority Rule (`"สวัสดี"`, `"หวัดดี"`, `"hello"`, `"มีใครอยู่ไหม"`, `"ช่วยได้ไหม"`) และ Tier 3 BERT Multilingual E5 Passages
+   - มี **Product Hint Guard** ป้องกัน False Positive (เช่น `"สวัสดี ขอเสื้อยืดหน่อย"` จะไม่หลุดเข้า greeting แต่ส่งต่อไปยัง `product_search` ทันที)
+   - ปรับปรุง [tiered_router.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/tiered_router.py) ส่งข้อความต้อนรับสุ่ม 3 สไตล์ พร้อมสรุปความสามารถของบอต 5 ข้อ
+   - ปรับปรุง [quick_replies.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/views/quick_replies.py) จัดเรียงปุ่มลัด 5 หมวดหลัก (ค้นหาสินค้า, สุ่มแนะนำ, คูปอง, เปรียบเทียบผ้า, ดูตารางไซส์)
+
+2. **ระบบตรวจจับคำพิมพ์ผิดสำหรับกลุ่มเสื้อเด็ก (`"เสื้อ เด"`, `"เสื้อเด"` ➔ `"เสื้อเด็ก"`)**:
+   - เพิ่ม Typo Map และ Pre-tokenization `phrase_map` ใน [intent_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/intent_service.py)
+   - อัปเดต `_detect_query_gender()` และ `query_has_kids` ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) ตรวจจับ `"เสื้อเด"`, `"เสื้อ เด"` ให้ดึงสินค้าหมวดเด็ก พร้อมสิทธิ์ 2.50x Kids Boost
+
+3. **ระบบตรวจจับคำพิมพ์ผิดสำหรับกลุ่มเสื้อโปโล (`"เสื้อโปเล"`, `"โปเล"` ➔ `"เสื้อโปโล"`)**:
+   - เพิ่ม Typo Map และ `phrase_map` แปลง `"เสื้อโปเล"` ➔ `"เสื้อโปโล"`
+   - อัปเดต `PERSONA_SYNONYMS["Polo"]` และ `INTENT_MAP_KEYWORDS["polo"]` ใน [product_service.py](file:///D:/ananda_personal/my_project/Chatbot_YuedPao/app/services/product_service.py) ให้ค้นพบสินค้าโปโลทุกรุ่น (*Polo Waffle, POLO ECOTECH*) แม่นยำ 100%
+
+---
+
 ## 📅 [2026-08-28] - Session 53: Style Vibe Cross-Contamination Fix & RRF Loop Performance Optimization ADR
 
 ### 🎯 สรุปผลงานที่ปรับปรุง
